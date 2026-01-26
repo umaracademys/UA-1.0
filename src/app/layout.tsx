@@ -9,6 +9,9 @@ import { SystemSettingsProvider } from "@/contexts/SystemSettingsContext";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { Toaster } from "react-hot-toast";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",

@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default function UnauthorizedPage() {
   const { user } = useAuth();

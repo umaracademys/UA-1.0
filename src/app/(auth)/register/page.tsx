@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
 import toast from "react-hot-toast";

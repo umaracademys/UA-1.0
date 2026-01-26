@@ -1,6 +1,7 @@
 "use client";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 import { ReportGenerator } from "@/components/dashboard/admin/ReportGenerator";
 import { FileText, Calendar, Save } from "lucide-react";
