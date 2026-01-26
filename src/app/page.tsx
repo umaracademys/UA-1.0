@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
@@ -10,6 +10,20 @@ export const dynamic = "force-dynamic";
 export default function Home() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const [timeoutReached, setTimeoutReached] = useState(false);
+
+  // Add timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setTimeoutReached(true);
+        // Redirect to login if loading takes too long
+        router.push("/login");
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [loading, router]);
 
   useEffect(() => {
     if (!loading) {

@@ -61,9 +61,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       if (token) {
         try {
+          // Add timeout to prevent hanging
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
           const response = await axios.get("/api/auth/me", {
             headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+            timeout: 10000, // 10 second timeout
           });
+
+          clearTimeout(timeoutId);
 
           if (response.data.user || response.data) {
             const userData = response.data.user || response.data;
@@ -83,11 +91,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               localStorage.removeItem("token");
             }
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to load user:", error);
           if (typeof window !== "undefined") {
             localStorage.removeItem("token");
           }
+          // Set loading to false even on error to prevent infinite loading
         }
       }
       setLoading(false);

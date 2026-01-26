@@ -33,22 +33,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} font-sans antialiased`}
       >
-        <ErrorBoundary
-          fallback={
-            <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-4">
-              <div className="w-full max-w-2xl rounded-lg border border-red-200 bg-white p-8 shadow-lg text-center">
-                <h1 className="text-2xl font-bold text-neutral-900 mb-2">Application Error</h1>
-                <p className="text-neutral-600 mb-4">An error occurred while loading the application.</p>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-                >
-                  Reload Page
-                </button>
-              </div>
-            </div>
-          }
-        >
+        <ErrorBoundary>
           <ThemeProvider>
             <SystemSettingsProvider>
               <AuthProvider>
