@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { QaidahProgressDashboard } from "@/components/modules/qaidah/QaidahProgressDashboard";
 import { QaidahLessonList } from "@/components/modules/qaidah/QaidahLessonList";

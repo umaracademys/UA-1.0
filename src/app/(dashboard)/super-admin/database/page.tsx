@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { Database, Download, Archive, Trash2, AlertTriangle, HardDrive } from "lucide-react";
 import axios from "axios";

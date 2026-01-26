@@ -13,12 +13,6 @@ const nextConfig = {
       { protocol: "https", hostname: "tanzil.net" },
     ],
   },
-  api: {
-    bodyParser: {
-      sizeLimit: "10mb",
-    },
-    responseLimit: "10mb",
-  },
   webpack: (config, { isServer }) => {
     // Exclude MongoDB/Mongoose from client bundle
     if (!isServer) {

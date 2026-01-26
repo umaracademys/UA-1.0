@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { ReportGenerator } from "@/components/dashboard/admin/ReportGenerator";
 import { FileText, Calendar, Save } from "lucide-react";
 import axios from "axios";

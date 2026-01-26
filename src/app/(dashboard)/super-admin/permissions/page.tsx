@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { PermissionMatrix } from "@/components/dashboard/super-admin/PermissionMatrix";
 import axios from "axios";

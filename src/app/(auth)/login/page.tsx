@@ -8,6 +8,8 @@ import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { useSystemSettings } from "@/contexts/SystemSettingsContext";
 import toast from "react-hot-toast";

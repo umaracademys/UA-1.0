@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { Plus, BookOpen, CheckCircle, Clock } from "lucide-react";
 import { AssignmentList } from "@/components/modules/assignments/AssignmentList";

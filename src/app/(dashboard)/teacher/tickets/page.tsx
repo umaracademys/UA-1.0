@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { Plus, BookOpen, Clock, CheckCircle } from "lucide-react";
 import { CreateTicketModal } from "@/components/modules/tickets/CreateTicketModal";

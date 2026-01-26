@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react";
 import { TicketList } from "@/components/modules/tickets/TicketList";

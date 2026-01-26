@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { PDFViewer } from "@/components/modules/pdf/PDFViewer";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";

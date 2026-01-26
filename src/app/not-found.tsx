@@ -3,10 +3,19 @@
 import { FileQuestion, ArrowLeft, Home } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+
+export const dynamic = "force-dynamic";
 
 export default function NotFound() {
   const { user } = useAuth();
-  const dashboardPath = user ? `/${user.role}` : "/";
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const dashboardPath = mounted && user ? `/${user.role}` : "/";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">

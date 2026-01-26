@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { CheckCheck } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { NotificationList } from "@/components/modules/notifications/NotificationList";

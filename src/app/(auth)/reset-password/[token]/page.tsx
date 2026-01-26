@@ -8,6 +8,8 @@ import { Eye, EyeOff, Loader2, Lock, CheckCircle } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
+
+export const dynamic = "force-dynamic";
 import axios from "axios";
 import toast from "react-hot-toast";
 

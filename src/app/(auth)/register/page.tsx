@@ -8,6 +8,8 @@ import { Eye, EyeOff, Loader2, ChevronRight, ChevronLeft, User, Mail, Lock, Phon
 import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
+
+export const dynamic = "force-dynamic";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { PasswordStrengthIndicator } from "@/components/auth/PasswordStrengthIndicator";
 import toast from "react-hot-toast";

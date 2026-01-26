@@ -8,6 +8,8 @@ import { Mail, Loader2, CheckCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import axios from "axios";
+
+export const dynamic = "force-dynamic";
 import toast from "react-hot-toast";
 
 const forgotPasswordSchema = z.object({

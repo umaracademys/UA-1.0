@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { ConversationList } from "@/components/modules/messages/ConversationList";

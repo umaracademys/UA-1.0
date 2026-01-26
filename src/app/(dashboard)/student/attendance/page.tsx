@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { AttendanceCalendar } from "@/components/modules/attendance/AttendanceCalendar";
 import { AttendanceStatistics } from "@/components/modules/attendance/AttendanceStatistics";

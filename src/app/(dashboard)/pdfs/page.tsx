@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
 import { PDFLibrary } from "@/components/modules/pdf/PDFLibrary";
 import { UploadPDFModal } from "@/components/modules/pdf/UploadPDFModal";

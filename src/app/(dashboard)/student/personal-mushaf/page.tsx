@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { BookOpen, Info } from "lucide-react";
 import { PersonalMushafView } from "@/components/modules/mushaf/PersonalMushafView";
