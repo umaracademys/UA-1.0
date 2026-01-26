@@ -5,6 +5,8 @@ import UserModel from "@/lib/db/models/User";
 import { verifyToken } from "@/lib/utils/jwt";
 import { validatePassword } from "@/lib/utils/password";
 
+export const dynamic = "force-dynamic";
+
 type ChangePasswordPayload = {
   currentPassword: string;
   newPassword: string;

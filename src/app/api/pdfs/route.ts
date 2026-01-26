@@ -8,6 +8,8 @@ import { validatePDFFile, extractPDFMetadata, savePDFFile } from "@/lib/utils/pd
 import { createNotification } from "@/lib/utils/notifications";
 import { Types } from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     const authHeader = req.headers.get("authorization");

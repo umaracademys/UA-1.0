@@ -4,6 +4,8 @@ import { connectToDatabase } from "@/lib/db/connection";
 import UserModel from "@/lib/db/models/User";
 import { generateToken } from "@/lib/utils/jwt";
 
+export const dynamic = "force-dynamic";
+
 type LoginPayload = {
   email: string;
   password: string;

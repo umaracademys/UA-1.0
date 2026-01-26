@@ -13,6 +13,8 @@ import { checkAPIPermission } from "@/lib/utils/permissions";
 import { isValidEmail } from "@/lib/middleware/security";
 import type { UserRole } from "@/types";
 
+export const dynamic = "force-dynamic";
+
 type StudentCreatePayload = {
   email: string;
   password: string;

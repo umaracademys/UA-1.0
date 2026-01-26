@@ -3,6 +3,8 @@ import { connectToDatabase } from "@/lib/db/connection";
 import QaidahLessonModel from "@/lib/db/models/QaidahLesson";
 import { verifyToken } from "@/lib/utils/jwt";
 
+export const dynamic = "force-dynamic";
+
 const getAuthToken = (request: Request) => {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {

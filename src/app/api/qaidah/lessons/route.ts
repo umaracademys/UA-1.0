@@ -7,6 +7,8 @@ import { verifyToken } from "@/lib/utils/jwt";
 import { checkAPIPermission } from "@/lib/utils/permissions";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const getAuthToken = (request: Request) => {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {

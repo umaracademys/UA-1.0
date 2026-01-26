@@ -6,6 +6,8 @@ import { checkAPIPermission } from "@/lib/utils/permissions";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 
+export const dynamic = "force-dynamic";
+
 const getAuthToken = (request: Request) => {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {

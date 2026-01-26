@@ -7,6 +7,8 @@ import UserModel from "@/lib/db/models/User";
 import { verifyToken } from "@/lib/utils/jwt";
 import { hasPermission } from "@/lib/utils/permissions";
 
+export const dynamic = "force-dynamic";
+
 const getAuthToken = (request: Request) => {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {

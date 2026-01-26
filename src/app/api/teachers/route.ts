@@ -10,6 +10,8 @@ import { validatePassword } from "@/lib/utils/password";
 import { checkAPIPermission } from "@/lib/utils/permissions";
 import { isValidEmail } from "@/lib/middleware/security";
 
+export const dynamic = "force-dynamic";
+
 type TeacherCreatePayload = {
   email: string;
   password: string;

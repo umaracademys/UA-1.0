@@ -4,6 +4,8 @@ import { connectToDatabase } from "@/lib/db/connection";
 import UserModel from "@/lib/db/models/User";
 import { verifyToken } from "@/lib/utils/jwt";
 
+export const dynamic = "force-dynamic";
+
 type UnlockPayload = {
   userId: string;
 };
