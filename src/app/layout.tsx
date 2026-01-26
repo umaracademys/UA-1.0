@@ -10,7 +10,6 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { Toaster } from "react-hot-toast";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 
 // Use Google Fonts instead of local fonts to avoid file loading issues
 const inter = Inter({

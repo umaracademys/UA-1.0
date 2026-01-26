@@ -10,7 +10,6 @@ import { AuthLayout } from "@/components/auth/AuthLayout";
 import axios from "axios";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 0;
 import toast from "react-hot-toast";
 
 const forgotPasswordSchema = z.object({
