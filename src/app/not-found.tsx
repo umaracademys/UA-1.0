@@ -11,12 +11,14 @@ export const revalidate = 0;
 export default function NotFound() {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
+  const [dashboardPath, setDashboardPath] = useState("/");
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  const dashboardPath = mounted && user ? `/${user.role}` : "/";
+    if (user) {
+      setDashboardPath(`/${user.role}`);
+    }
+  }, [user]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
@@ -33,7 +35,7 @@ export default function NotFound() {
           navigate back to the homepage.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          {user && (
+          {mounted && user && (
             <Link
               href={dashboardPath}
               className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"

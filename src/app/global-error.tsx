@@ -1,8 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 import { useEffect } from "react";
 import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 import Link from "next/link";
@@ -19,7 +16,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <html lang="en">
+    <html>
       <body>
         <div className="flex min-h-screen items-center justify-center bg-neutral-50 p-4">
           <div className="w-full max-w-2xl rounded-lg border border-red-200 bg-white p-8 shadow-lg">
