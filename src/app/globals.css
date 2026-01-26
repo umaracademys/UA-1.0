@@ -1,0 +1,141 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Arabic Font for Quran Text */
+@import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Scheherazade+New:wght@400;700&display=swap');
+
+/* Quran text styling */
+.quran-text {
+  font-family: 'Amiri Quran', 'Scheherazade New', 'Traditional Arabic', 'Amiri', serif;
+  font-size: 28px;
+  line-height: 1.8;
+  direction: rtl;
+  text-align: center;
+  color: #000;
+  letter-spacing: 0.5px;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Dark mode support */
+.dark {
+  color-scheme: dark;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --color-primary: #2E4D32;
+  --color-secondary: #C49636;
+  --color-accent: #C49636;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+html {
+  background: var(--background);
+}
+
+@layer base {
+  /* Ensure all input fields have black text */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="time"],
+  input[type="search"],
+  input[type="url"],
+  input[type="datetime-local"],
+  textarea,
+  select {
+    color: #000000 !important;
+  }
+  
+  /* Ensure all select/dropdown options have black text */
+  select option {
+    color: #000000 !important;
+    background-color: #ffffff;
+  }
+  
+  /* Ensure dropdown/combobox options have black text */
+  [role="option"],
+  [role="listbox"] [role="option"],
+  button[role="option"] {
+    color: #000000 !important;
+  }
+  
+  /* Ensure Headless UI Listbox buttons and options have black text */
+  [data-headlessui-state] button,
+  button[data-headlessui-state],
+  button[role="listbox"],
+  [role="listbox"] button {
+    color: #000000 !important;
+  }
+  
+  /* Ensure all button text in form contexts is black */
+  form button:not([type="submit"]):not(.text-white):not(.text-primary):not(.text-secondary) {
+    color: #000000 !important;
+  }
+  
+  /* Ensure placeholder text is visible but not black */
+  input::placeholder,
+  textarea::placeholder {
+    color: #000000 !important;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Custom color scheme utilities */
+  .bg-primary {
+    background-color: var(--color-primary);
+  }
+  
+  .hover\:bg-primary-dark:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 90%, black);
+  }
+  
+  .text-primary {
+    color: var(--color-primary);
+  }
+  
+  .border-primary {
+    border-color: var(--color-primary);
+  }
+  
+  .bg-secondary {
+    background-color: var(--color-secondary);
+  }
+  
+  .text-secondary {
+    color: var(--color-secondary);
+  }
+  
+  .bg-accent {
+    background-color: var(--color-accent);
+  }
+  
+  .text-accent {
+    color: var(--color-accent);
+  }
+}
