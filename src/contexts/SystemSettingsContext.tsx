@@ -37,9 +37,17 @@ export function SystemSettingsProvider({ children }: { children: ReactNode }) {
 
   const refreshSettings = async () => {
     try {
+      // Ensure we're on the client side
+      if (typeof window === "undefined") {
+        setSettings(defaultSettings);
+        setLoading(false);
+        return;
+      }
+
       const token = localStorage.getItem("token");
       if (!token) {
         setSettings(defaultSettings);
+        applySettings(defaultSettings);
         setLoading(false);
         return;
       }

@@ -52,12 +52,26 @@ export const connectToDatabase = async (): Promise<Connection> => {
   if (!cache.promise) {
     const uri = process.env.MONGODB_URI;
     if (!uri) {
-      throw new Error("Missing MONGODB_URI environment variable.");
+      const error = new Error("Missing MONGODB_URI environment variable.");
+      console.error("Database connection error:", error.message);
+      throw error;
     }
 
-    cache.promise = connectWithRetry(uri, defaultOptions, 4);
+    try {
+      cache.promise = connectWithRetry(uri, defaultOptions, 4);
+    } catch (error) {
+      console.error("Failed to create database connection promise:", error);
+      throw error;
+    }
   }
 
-  cache.conn = await cache.promise;
-  return cache.conn;
+  try {
+    cache.conn = await cache.promise;
+    return cache.conn;
+  } catch (error) {
+    // Clear the promise on error so we can retry
+    cache.promise = null;
+    console.error("Database connection failed:", error);
+    throw error;
+  }
 };
