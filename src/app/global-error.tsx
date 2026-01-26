@@ -33,7 +33,13 @@ export default function GlobalError({
             {error && (
               <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
                 <p className="mb-2 font-semibold text-neutral-900">Error:</p>
-                <p className="text-sm text-red-600">{error.message}</p>
+                <p className="text-sm text-red-600">{error.message || "An unknown error occurred"}</p>
+                {error.digest && (
+                  <p className="mt-2 text-xs text-neutral-500">Error ID: {error.digest}</p>
+                )}
+                <p className="mt-4 text-xs text-neutral-600">
+                  Please check your environment variables (MONGODB_URI, JWT_SECRET) in Render settings.
+                </p>
               </div>
             )}
 

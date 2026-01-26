@@ -1,4 +1,5 @@
 import mongoose, { Connection } from "mongoose";
+import { validateEnvironmentVariables } from "@/lib/utils/env-check";
 
 type MongooseCache = {
   conn: Connection | null;
@@ -45,6 +46,16 @@ const connectWithRetry = async (
 };
 
 export const connectToDatabase = async (): Promise<Connection> => {
+  // Validate environment variables first
+  const envCheck = validateEnvironmentVariables();
+  if (!envCheck.valid) {
+    const error = new Error(
+      `Missing required environment variables: ${envCheck.missing.join(", ")}. Please configure these in Render.`
+    );
+    console.error("❌ Environment validation failed:", error.message);
+    throw error;
+  }
+
   if (cache.conn) {
     return cache.conn;
   }
@@ -53,7 +64,7 @@ export const connectToDatabase = async (): Promise<Connection> => {
     const uri = process.env.MONGODB_URI;
     if (!uri) {
       const error = new Error("Missing MONGODB_URI environment variable.");
-      console.error("Database connection error:", error.message);
+      console.error("❌ Database connection error:", error.message);
       throw error;
     }
 

@@ -34,7 +34,18 @@ export default function Error({
         {error && (
           <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
             <p className="mb-2 font-semibold text-neutral-900">Error:</p>
-            <p className="text-sm text-red-600">{error.message}</p>
+            <p className="text-sm text-red-600">{error.message || "An unknown error occurred"}</p>
+            {error.digest && (
+              <p className="mt-2 text-xs text-neutral-500">Error ID: {error.digest}</p>
+            )}
+            {process.env.NODE_ENV === "development" && error.stack && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-xs text-neutral-600">Stack Trace</summary>
+                <pre className="mt-2 overflow-auto rounded bg-neutral-900 p-2 text-xs text-neutral-100">
+                  {error.stack}
+                </pre>
+              </details>
+            )}
           </div>
         )}
 
