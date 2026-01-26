@@ -3,6 +3,8 @@ import { getSystemMetrics } from "@/lib/utils/systemHealth";
 import { verifyToken } from "@/lib/utils/jwt";
 import { hasPermission } from "@/lib/utils/permissions";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: Request) {
   try {
     // Authenticate request
