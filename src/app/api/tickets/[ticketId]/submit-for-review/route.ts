@@ -1,8 +1,16 @@
+/**
+ * POST /api/tickets/[ticketId]/submit-for-review
+ * Teacher submits ticket for admin review.
+ * Validation rules: ticket must be in-progress or paused.
+ * Duplicate submission prevention: once submittedAt is set, no second submit (returns 400).
+ * Assignment → listened sync: when ticket is linked (assignmentId), sets assignment status to "listened".
+ */
 import { NextResponse } from "next/server";
 import { Types } from "mongoose";
 
 import { connectToDatabase } from "@/lib/db/connection";
 import TicketModel from "@/lib/db/models/Ticket";
+import AssignmentModel from "@/lib/db/models/Assignment";
 import TeacherModel from "@/lib/db/models/Teacher";
 import UserModel from "@/lib/db/models/User";
 import NotificationModel from "@/lib/db/models/Notification";
@@ -41,9 +49,48 @@ export async function POST(request: Request, context: { params: { ticketId: stri
       return NextResponse.json({ success: false, message: "Ticket not found." }, { status: 404 });
     }
 
-    // Update ticket status
+    if (ticket.status !== "in-progress" && ticket.status !== "paused") {
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            "Only an in-progress or paused ticket can be submitted. Current status: " + ticket.status,
+        },
+        { status: 400 },
+      );
+    }
+
+    // Prevent duplicate submission: once submittedAt is set, no second submit.
+    if (ticket.submittedAt) {
+      return NextResponse.json(
+        { success: false, message: "Ticket was already submitted. Duplicate submission not allowed." },
+        { status: 400 },
+      );
+    }
+
+    const now = new Date();
     ticket.status = "submitted";
+    ticket.submittedAt = now;
+    if (ticket.startedAt) {
+      ticket.listeningDurationSeconds = Math.round(
+        (now.getTime() - new Date(ticket.startedAt).getTime()) / 1000,
+      );
+    }
+
+    const body = (await request.json().catch(() => ({}))) as { sessionNotes?: string };
+    if (typeof body.sessionNotes === "string") {
+      ticket.sessionNotes = body.sessionNotes;
+    }
+
     await ticket.save();
+
+    // When ticket is linked to an assignment, update assignment status to LISTENED
+    if (ticket.assignmentId) {
+      await AssignmentModel.findByIdAndUpdate(ticket.assignmentId, {
+        status: "listened",
+        updatedAt: new Date(),
+      });
+    }
 
     // Create notification for admin
     const admins = await UserModel.find({ role: { $in: ["admin", "super_admin"] } }).select("_id").lean();

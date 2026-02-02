@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { useState, useEffect } from "react";
 import { Plus, BookOpen, Clock, CheckCircle } from "lucide-react";
 import { CreateTicketModal } from "@/components/modules/tickets/CreateTicketModal";
@@ -19,7 +17,7 @@ export default function TeacherTicketsPage() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "in-progress" | "submitted">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "in-progress" | "paused" | "submitted">("all");
 
   useEffect(() => {
     fetchTickets();
@@ -106,6 +104,7 @@ export default function TeacherTicketsPage() {
 
   const pendingCount = tickets.filter((t) => t.status === "pending").length;
   const inProgressCount = tickets.filter((t) => t.status === "in-progress").length;
+  const pausedCount = tickets.filter((t) => t.status === "paused").length;
   const submittedCount = tickets.filter((t) => t.status === "submitted").length;
 
   return (
@@ -125,7 +124,7 @@ export default function TeacherTicketsPage() {
       </div>
 
       {/* Statistics */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-neutral-200 bg-white p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -146,6 +145,18 @@ export default function TeacherTicketsPage() {
             </div>
             <div className="rounded-full bg-blue-100 p-3 text-blue-700">
               <BookOpen className="h-5 w-5" />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-white p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-neutral-600">Paused</p>
+              <p className="mt-1 text-2xl font-bold text-neutral-900">{pausedCount}</p>
+            </div>
+            <div className="rounded-full bg-amber-100 p-3 text-amber-700">
+              <Clock className="h-5 w-5" />
             </div>
           </div>
         </div>
@@ -194,6 +205,16 @@ export default function TeacherTicketsPage() {
           }`}
         >
           In Progress
+        </button>
+        <button
+          onClick={() => setStatusFilter("paused")}
+          className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            statusFilter === "paused"
+              ? "bg-indigo-100 text-indigo-700"
+              : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
+          }`}
+        >
+          Paused
         </button>
         <button
           onClick={() => setStatusFilter("submitted")}

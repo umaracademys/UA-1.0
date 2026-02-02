@@ -13,12 +13,25 @@ import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useSwipeGestures } from "@/hooks/useSwipeGestures";
 import type { PersonalMushafMistake } from "@/lib/db/models/PersonalMushaf";
 import type { WorkflowStep } from "@/lib/db/models/PersonalMushaf";
+import { getSurahById } from "@/lib/mushaf/surahData";
 import toast from "react-hot-toast";
+
+/** Ayah range (from → to) locked when ticket is in progress. */
+export type AyahRange = {
+  fromSurah: number;
+  fromAyah: number;
+  toSurah: number;
+  toAyah: number;
+};
 
 type InteractiveMushafProps = {
   mode: "marking" | "viewing";
   studentId?: string;
   ticketId?: string;
+  /** When set (e.g. from active ticket), listening range is fixed. */
+  ayahRange?: AyahRange | null;
+  /** When true, ayah range cannot be changed (session locked). */
+  rangeLocked?: boolean;
   showHistoricalMistakes?: boolean;
   onMistakeMarked?: (mistake: PersonalMushafMistake) => void;
 };
@@ -61,12 +74,15 @@ export function InteractiveMushaf({
   mode,
   studentId,
   ticketId,
+  ayahRange: propAyahRange = null,
+  rangeLocked = false,
   showHistoricalMistakes: initialShowHistoricalMistakes = false,
   onMistakeMarked,
 }: InteractiveMushafProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [currentJuz, setCurrentJuz] = useState(1);
   const [currentSurah, setCurrentSurah] = useState<number | undefined>();
+  const [initialPositionLoaded, setInitialPositionLoaded] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [focusMode, setFocusMode] = useState(false);
   const [toolsHidden, setToolsHidden] = useState(false);
@@ -95,6 +111,55 @@ export function InteractiveMushaf({
   useEffect(() => {
     setCurrentJuz(getJuzFromPage(currentPage));
   }, [currentPage]);
+
+  // Mushaf position memory: load last page/surah/ayah for this student so reload restores exact position. No data loss on browser crash or refresh.
+  useEffect(() => {
+    if (!studentId || initialPositionLoaded) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch(`/api/students/${studentId}/mushaf-position`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (cancelled || !res.ok || !data.position) return;
+        const { lastPage, lastSurah } = data.position;
+        if (lastPage != null && lastPage >= 1 && lastPage <= 604) {
+          setCurrentPage(lastPage);
+          setCurrentJuz(getJuzFromPage(lastPage));
+        }
+        if (lastSurah != null) setCurrentSurah(lastSurah);
+      } catch {
+        // Non-blocking
+      } finally {
+        if (!cancelled) setInitialPositionLoaded(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [studentId, initialPositionLoaded]);
+
+  // Persist Mushaf position when student navigates (debounced). Ensures last viewed page/surah is saved for next open.
+  useEffect(() => {
+    if (!studentId || !initialPositionLoaded) return;
+    const t = setTimeout(() => {
+      const token = localStorage.getItem("token");
+      fetch(`/api/students/${studentId}/mushaf-position`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          lastPage: currentPage,
+          lastSurah: currentSurah ?? undefined,
+        }),
+      }).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+  }, [studentId, initialPositionLoaded, currentPage, currentSurah]);
 
   const loadTicketMistakes = async () => {
     if (!ticketId) return;
@@ -207,10 +272,9 @@ export function InteractiveMushaf({
     }
   }, []);
 
-  const navigateToSurah = useCallback((surah: number) => {
-    // Approximate surah starting pages - in production, use accurate data
-    const approximatePage = Math.floor((surah - 1) * 5.3) + 1;
-    setCurrentPage(Math.min(approximatePage, 604));
+  const navigateToSurah = useCallback((surah: number, page?: number) => {
+    const startPage = page ?? getSurahById(surah)?.startPage ?? 1;
+    setCurrentPage(Math.min(Math.max(1, startPage), 604));
     setCurrentSurah(surah);
   }, []);
 
@@ -294,8 +358,34 @@ export function InteractiveMushaf({
   }, [navigateToPage]);
 
   const handleRemoveMistake = async (mistakeId: string) => {
-    // Remove from current session mistakes (in marking mode)
-    setCurrentSessionMistakes(currentSessionMistakes.filter((m) => m.id !== mistakeId));
+    const removed = currentSessionMistakes.find((m) => m.id === mistakeId);
+    // If mistake is from ticket (id = ticket-${ticketId}-${index}), remove on server so it persists after refresh.
+    const ticketMistakeMatch = ticketId && mistakeId.startsWith(`ticket-${ticketId}-`);
+    if (ticketMistakeMatch && ticketId) {
+      const indexStr = mistakeId.replace(`ticket-${ticketId}-`, "");
+      const index = parseInt(indexStr, 10);
+      if (!Number.isNaN(index) && index >= 0) {
+        try {
+          const token = localStorage.getItem("token");
+          const res = await fetch(`/api/tickets/${ticketId}/mistakes`, {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ index }),
+          });
+          if (res.ok) {
+            await loadTicketMistakes();
+            if (removed) onMistakeMarked?.(removed);
+            return;
+          }
+        } catch {
+          // Fall through to local remove
+        }
+      }
+    }
+    setCurrentSessionMistakes((prev) => prev.filter((m) => m.id !== mistakeId));
   };
 
   const zoomIn = () => setZoom(Math.min(zoom + 0.1, 1.4));
@@ -401,6 +491,8 @@ export function InteractiveMushaf({
           toolsHidden={toolsHidden}
           showHistoricalMistakes={showHistoricalMistakes}
           historicalMistakesCount={pageHistoricalMistakes.length}
+          rangeLocked={rangeLocked}
+          ayahRange={propAyahRange}
           onPageChange={navigateToPage}
           onJuzChange={navigateToJuz}
           onSurahChange={navigateToSurah}
@@ -442,10 +534,11 @@ export function InteractiveMushaf({
           </div>
         )}
 
-        {/* Center - Mushaf Page */}
-        <div className="flex-1 overflow-auto" ref={mushafContainerRef}>
-          <div className={`flex h-full items-center justify-center ${focusMode ? "bg-black" : "bg-neutral-100"}`}>
+        {/* Center - Mushaf Page: vertical scroll only; no horizontal scroll (width stays within container) */}
+        <div className="flex-1 overflow-x-hidden overflow-y-auto" style={{ opacity: 1, visibility: "visible" }} ref={mushafContainerRef}>
+          <div className={`flex h-full items-center justify-center ${focusMode ? "bg-black" : "bg-neutral-100"}`} style={{ opacity: 1, visibility: "visible" }}>
             <MushafPage
+              key={currentPage}
               pageNumber={currentPage}
               zoom={zoom}
               mistakes={filteredPageCurrentMistakes}

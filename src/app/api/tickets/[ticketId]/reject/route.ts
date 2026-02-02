@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 
 import { connectToDatabase } from "@/lib/db/connection";
 import TicketModel from "@/lib/db/models/Ticket";
+import AssignmentModel from "@/lib/db/models/Assignment";
 import TeacherModel from "@/lib/db/models/Teacher";
 import UserModel from "@/lib/db/models/User";
 import NotificationModel from "@/lib/db/models/Notification";
@@ -61,6 +62,14 @@ export async function POST(request: Request, context: { params: { ticketId: stri
     ticket.reviewedAt = new Date();
     ticket.reviewNotes = body.reviewNotes;
     await ticket.save();
+
+    // Ticket → Assignment sync: when ticket is linked, set assignment to NEEDS_REVISION.
+    if (ticket.assignmentId) {
+      await AssignmentModel.findByIdAndUpdate(ticket.assignmentId, {
+        status: "needs_revision",
+        updatedAt: new Date(),
+      });
+    }
 
     // Create notification for teacher
     const teacher = await TeacherModel.findById(ticket.teacherId);

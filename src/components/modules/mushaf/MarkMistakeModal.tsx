@@ -94,6 +94,7 @@ const mistakeTypes = [
   { value: "missing_stop", category: "stop", label: "Missing Stop" },
   { value: "memory_error", category: "memory", label: "Memory Error" },
   { value: "atkees", category: "atkees", label: "Atkees" },
+  { value: "hesitation", category: "other", label: "Hesitation" },
   { value: "other", category: "other", label: "Other" },
 ];
 

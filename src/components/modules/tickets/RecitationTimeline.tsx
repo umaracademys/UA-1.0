@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Clock, Play } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Play, Pause, CircleStop } from "lucide-react";
 import type { TicketWorkflowStep, TicketStatus } from "@/lib/db/models/Ticket";
 
 type TimelineEntry = {
@@ -28,17 +28,21 @@ const workflowStepColors: Record<TicketWorkflowStep, string> = {
 const statusIcons: Record<TicketStatus, typeof CheckCircle> = {
   pending: Clock,
   "in-progress": Play,
+  paused: Pause,
   submitted: Clock,
   approved: CheckCircle,
   rejected: XCircle,
+  closed: CircleStop,
 };
 
 const statusColors: Record<TicketStatus, string> = {
   pending: "text-yellow-600",
   "in-progress": "text-blue-600",
+  paused: "text-amber-600",
   submitted: "text-purple-600",
   approved: "text-green-600",
   rejected: "text-red-600",
+  closed: "text-neutral-500",
 };
 
 export function RecitationTimeline({

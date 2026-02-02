@@ -11,7 +11,7 @@ type Surah = {
   startingPage: number;
 };
 
-import { SURAHS as SURAH_DATA, type SurahData } from "@/lib/mushaf/surahData";
+import { SURAHS as SURAH_DATA, getSurahByPage } from "@/lib/mushaf/surahData";
 
 const SURAHS: Surah[] = SURAH_DATA.map((surah) => ({
   number: surah.id,
@@ -78,14 +78,15 @@ export function SurahIndex({
           {/* Surah List */}
           <div className="flex-1 overflow-y-auto">
             {filteredSurahs.map((surah) => {
-              const isCurrent = surah.number === currentSurah || (currentPage >= surah.startingPage && currentPage < surah.startingPage + 5);
+              const pageSurah = getSurahByPage(currentPage)?.id;
+              const isCurrent = surah.number === (pageSurah ?? currentSurah);
 
               return (
                 <button
                   key={surah.number}
                   onClick={() => onSurahClick(surah.number, surah.startingPage)}
                   className={`w-full border-b border-neutral-100 px-4 py-3 text-left transition-colors hover:bg-neutral-50 ${
-                    isCurrent ? "bg-indigo-50 border-indigo-200" : ""
+                    isCurrent ? "border-l-4 border-l-indigo-500 bg-indigo-50" : ""
                   }`}
                 >
                   <div className="flex items-center justify-between">

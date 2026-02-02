@@ -80,8 +80,8 @@ export async function loadQPCLayout(page: number): Promise<QPCPageLayout | null>
       return null;
     }
 
-    // Load word text data
-    const wordDataPath = path.join(process.cwd(), "public", "data", "qpc-hafs-word-by-word.json");
+    // Load word text data (qpc-v4.json only)
+    const wordDataPath = path.join(process.cwd(), "public", "data", "Mushaf files", "qpc-v4.json");
     if (!fs.existsSync(wordDataPath)) {
       console.warn("[QPC Layout] Word data file not found");
       return null;

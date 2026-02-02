@@ -11,6 +11,10 @@ type NavigationControlsProps = {
   toolsHidden: boolean;
   showHistoricalMistakes?: boolean;
   historicalMistakesCount?: number;
+  /** When true, listening range is locked (ticket in progress). */
+  rangeLocked?: boolean;
+  /** Locked ayah range (from → to). */
+  ayahRange?: { fromSurah: number; fromAyah: number; toSurah: number; toAyah: number } | null;
   onPageChange: (page: number) => void;
   onJuzChange: (juz: number) => void;
   onSurahChange: (surah: number) => void;
@@ -66,6 +70,8 @@ export function NavigationControls({
   toolsHidden,
   showHistoricalMistakes = true,
   historicalMistakesCount = 0,
+  rangeLocked = false,
+  ayahRange = null,
   onPageChange,
   onJuzChange,
   onSurahChange,
@@ -158,6 +164,13 @@ export function NavigationControls({
             </option>
           ))}
         </select>
+
+        {/* Range locked indicator (ticket session active) */}
+        {rangeLocked && ayahRange && (
+          <span className="ml-3 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800" title="Listening range locked for this ticket">
+            Range: S{ayahRange.fromSurah}:{ayahRange.fromAyah} → S{ayahRange.toSurah}:{ayahRange.toAyah}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">

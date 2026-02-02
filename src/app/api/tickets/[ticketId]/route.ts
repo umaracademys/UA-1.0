@@ -35,6 +35,7 @@ export async function GET(request: Request, context: { params: { ticketId: strin
       .populate("teacherId", "userId")
       .populate("reviewedBy", "fullName email")
       .populate("homeworkAssigned")
+      .populate("assignmentId")
       .lean();
 
     if (!ticket) {
@@ -78,6 +79,7 @@ export async function PATCH(request: Request, context: { params: { ticketId: str
       status?: TicketStatus;
       notes?: string;
       audioUrl?: string;
+      sessionNotes?: string;
     };
 
     const updateData: Record<string, unknown> = {};
@@ -91,11 +93,15 @@ export async function PATCH(request: Request, context: { params: { ticketId: str
     if (body.audioUrl !== undefined) {
       updateData.audioUrl = body.audioUrl;
     }
+    if (body.sessionNotes !== undefined && (ticket.status === "in-progress" || ticket.status === "paused")) {
+      updateData.sessionNotes = body.sessionNotes;
+    }
 
     const updatedTicket = await TicketModel.findByIdAndUpdate(ticketId, updateData, { new: true })
       .populate("studentId", "userId")
       .populate("teacherId", "userId")
       .populate("reviewedBy", "fullName email")
+      .populate("assignmentId")
       .lean();
 
     return NextResponse.json({

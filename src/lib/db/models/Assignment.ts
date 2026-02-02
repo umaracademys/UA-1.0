@@ -1,7 +1,16 @@
 import mongoose, { Model, Schema, Types } from "mongoose";
 
-export type AssignmentStatus = "active" | "completed" | "archived";
-export type ClassworkType = "sabq" | "sabqi" | "manzil";
+/** Assignment lifecycle: ASSIGNED (active) → IN_PROGRESS → LISTENED → COMPLETED or NEEDS_REVISION. */
+export type AssignmentStatus =
+  | "active"       // ASSIGNED – not yet started
+  | "in_progress"  // Teacher/student working on it
+  | "listened"     // Linked ticket was submitted (listening done)
+  | "needs_revision" // Ticket rejected or needs re-do
+  | "completed"    // Done (ticket approved or marked complete)
+  | "archived";
+
+/** Assignment / listening types: Sabq, Sabqi, Manzil, Revision, Special Practice. */
+export type ClassworkType = "sabq" | "sabqi" | "manzil" | "revision" | "special_practice";
 export type HomeworkRangeMode = "surah_ayah" | "surah_surah" | "juz_juz" | "multiple_juz";
 export type HomeworkSubmissionStatus = "submitted" | "graded" | "returned";
 export type MistakeType =
@@ -180,7 +189,7 @@ export interface AssignmentDocument extends mongoose.Document {
 // Sub-schemas
 const classworkPhaseSchema = new Schema<ClassworkPhase>(
   {
-    type: { type: String, enum: ["sabq", "sabqi", "manzil"], required: true },
+    type: { type: String, enum: ["sabq", "sabqi", "manzil", "revision", "special_practice"], required: true },
     assignmentRange: { type: String, required: true, trim: true },
     details: { type: String, trim: true },
     fromPage: { type: Number },
@@ -236,7 +245,7 @@ const homeworkAttachmentSchema = new Schema<HomeworkAttachment>(
 
 const homeworkItemSchema = new Schema<HomeworkItem>(
   {
-    type: { type: String, enum: ["sabq", "sabqi", "manzil"], required: true },
+    type: { type: String, enum: ["sabq", "sabqi", "manzil", "revision", "special_practice"], required: true },
     range: { type: homeworkRangeSchema, required: true },
     source: { type: homeworkItemSourceSchema, required: true },
     content: { type: String, trim: true },
@@ -356,7 +365,7 @@ const assignmentSchema = new Schema<AssignmentDocument>(
     // Status
     status: {
       type: String,
-      enum: ["active", "completed", "archived"],
+      enum: ["active", "in_progress", "listened", "needs_revision", "completed", "archived"],
       default: "active",
     },
     completedAt: { type: Date },

@@ -50,19 +50,56 @@ export async function POST(request: Request, context: { params: { ticketId: stri
       return NextResponse.json({ success: false, message: "Ticket not found." }, { status: 404 });
     }
 
-    // Update ticket
+    if (ticket.status !== "pending") {
+      return NextResponse.json(
+        { success: false, message: "Ticket is already started or submitted." },
+        { status: 400 },
+      );
+    }
+
+    const body = (await request.json().catch(() => ({}))) as {
+      fromSurah?: number;
+      fromAyah?: number;
+      toSurah?: number;
+      toAyah?: number;
+      assignmentId?: string;
+    };
+    const now = new Date();
+
     ticket.status = "in-progress";
     ticket.teacherId = teacher._id;
+    ticket.startedAt = now;
+    ticket.lastHeartbeatAt = now;
+    ticket.rangeLocked = true;
+
+    if (
+      body.fromSurah != null &&
+      body.fromAyah != null &&
+      body.toSurah != null &&
+      body.toAyah != null
+    ) {
+      ticket.ayahRange = {
+        fromSurah: body.fromSurah,
+        fromAyah: body.fromAyah,
+        toSurah: body.toSurah,
+        toAyah: body.toAyah,
+      };
+    }
+    if (body.assignmentId && Types.ObjectId.isValid(body.assignmentId)) {
+      ticket.assignmentId = new Types.ObjectId(body.assignmentId);
+    }
+
     await ticket.save();
 
     const updatedTicket = await TicketModel.findById(ticketId)
       .populate("studentId", "userId")
       .populate("teacherId", "userId")
+      .populate("assignmentId")
       .lean();
 
     return NextResponse.json({
       success: true,
-      message: "Ticket started successfully.",
+      message: "Ticket started successfully. Session is locked; use heartbeat to keep it alive.",
       ticket: updatedTicket,
     });
   } catch (error) {

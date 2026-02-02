@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Clock, Play, Eye, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import { Clock, Play, Eye, CheckCircle, XCircle } from "lucide-react";
 import type { TicketWorkflowStep, TicketStatus } from "@/lib/db/models/Ticket";
 
 export type TicketCardData = {
@@ -41,21 +41,25 @@ const workflowStepColors: Record<TicketWorkflowStep, string> = {
 const statusColors: Record<TicketStatus, string> = {
   pending: "bg-yellow-100 text-yellow-700",
   "in-progress": "bg-blue-100 text-blue-700",
+  paused: "bg-amber-100 text-amber-700",
   submitted: "bg-purple-100 text-purple-700",
   approved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
+  closed: "bg-neutral-100 text-neutral-700",
 };
 
 const statusIcons: Record<TicketStatus, typeof Clock> = {
   pending: Clock,
   "in-progress": Play,
+  paused: Clock,
   submitted: Clock,
   approved: CheckCircle,
   rejected: XCircle,
+  closed: XCircle,
 };
 
 export function TicketCard({ ticket, userRole, onStart, onView, onReview }: TicketCardProps) {
-  const StatusIcon = statusIcons[ticket.status];
+  const StatusIcon = statusIcons[ticket.status] ?? Clock;
   const studentName =
     ticket.studentId && typeof ticket.studentId === "object" && "userId" in ticket.studentId
       ? (ticket.studentId.userId as { fullName: string }).fullName
@@ -70,13 +74,13 @@ export function TicketCard({ ticket, userRole, onStart, onView, onReview }: Tick
           <div className="mb-2 flex items-center gap-2">
             <h3 className="text-lg font-semibold text-neutral-900">{studentName}</h3>
             <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${workflowStepColors[ticket.workflowStep]}`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${workflowStepColors[ticket.workflowStep] ?? "bg-neutral-100 text-neutral-700"}`}
             >
               {ticket.workflowStep}
             </span>
-            <div className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusColors[ticket.status]}`}>
+            <div className={`flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusColors[ticket.status] ?? "bg-neutral-100 text-neutral-700"}`}>
               <StatusIcon className="h-3 w-3" />
-              <span className="capitalize">{ticket.status.replace("-", " ")}</span>
+              <span className="capitalize">{(ticket.status ?? "").replace("-", " ")}</span>
             </div>
           </div>
 

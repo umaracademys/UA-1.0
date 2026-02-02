@@ -39,6 +39,9 @@ type AssignmentCardProps = {
 
 const statusColors: Record<AssignmentStatus | "overdue", string> = {
   active: "bg-blue-100 text-blue-700 border-blue-200",
+  in_progress: "bg-indigo-100 text-indigo-700 border-indigo-200",
+  listened: "bg-purple-100 text-purple-700 border-purple-200",
+  needs_revision: "bg-amber-100 text-amber-700 border-amber-200",
   completed: "bg-green-100 text-green-700 border-green-200",
   archived: "bg-gray-100 text-gray-700 border-gray-200",
   overdue: "bg-red-100 text-red-700 border-red-200",
@@ -46,14 +49,27 @@ const statusColors: Record<AssignmentStatus | "overdue", string> = {
 
 const statusIcons: Record<AssignmentStatus | "overdue", typeof CheckCircle> = {
   active: Clock,
+  in_progress: Clock,
+  listened: FileText,
+  needs_revision: AlertCircle,
   completed: CheckCircle,
   archived: AlertCircle,
   overdue: AlertCircle,
 };
 
+const statusLabels: Record<AssignmentStatus | "overdue", string> = {
+  active: "Assigned",
+  in_progress: "In progress",
+  listened: "Listened",
+  needs_revision: "Needs revision",
+  completed: "Completed",
+  archived: "Archived",
+  overdue: "Overdue",
+};
+
 export function AssignmentCard({ assignment, userRole, onClick }: AssignmentCardProps) {
   const displayStatus = assignment.status;
-  const StatusIcon = statusIcons[displayStatus];
+  const StatusIcon = statusIcons[displayStatus] ?? statusIcons.active; // Safe fallback so unknown enum never crashes UI
 
   // Count classwork entries
   const classworkCount =
@@ -121,10 +137,10 @@ export function AssignmentCard({ assignment, userRole, onClick }: AssignmentCard
 
         <div className="flex flex-col items-end gap-2">
           <div
-            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${statusColors[displayStatus]}`}
+            className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${statusColors[displayStatus] ?? statusColors.active}`}
           >
             <StatusIcon className="h-3.5 w-3.5" />
-            <span className="capitalize">{displayStatus}</span>
+            <span>{statusLabels[displayStatus] ?? "Unknown"}</span>
           </div>
 
           {userRole === "student" && homeworkGrade !== undefined && (

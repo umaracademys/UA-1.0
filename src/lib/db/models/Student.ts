@@ -18,6 +18,10 @@ export interface StudentDocument extends mongoose.Document {
   currentSabq?: string;
   currentSabqi?: string;
   currentManzil?: string;
+  /** Last Mushaf position (page/surah/ayah) for session continuity. */
+  lastMushafPage?: number;
+  lastMushafSurah?: number;
+  lastMushafAyah?: number;
   recitationHistory: Array<{
     date: Date;
     type: RecitationType;
@@ -47,6 +51,9 @@ const studentSchema = new Schema<StudentDocument>(
     currentSabq: { type: String },
     currentSabqi: { type: String },
     currentManzil: { type: String },
+    lastMushafPage: { type: Number },
+    lastMushafSurah: { type: Number },
+    lastMushafAyah: { type: Number },
     recitationHistory: [
       {
         date: { type: Date, required: true },

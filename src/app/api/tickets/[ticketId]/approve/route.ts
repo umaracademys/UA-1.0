@@ -70,6 +70,15 @@ export async function POST(request: Request, context: { params: { ticketId: stri
       ticket.reviewNotes = body.reviewNotes;
     }
 
+    // Ticket → Assignment sync: when ticket is linked, set assignment to COMPLETED (no second assignment created).
+    if (ticket.assignmentId) {
+      await AssignmentModel.findByIdAndUpdate(ticket.assignmentId, {
+        status: "completed",
+        completedAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+
     // Get student once for all operations
     const student = await StudentModel.findById(ticket.studentId);
 
@@ -109,9 +118,12 @@ export async function POST(request: Request, context: { params: { ticketId: stri
       }
     }
 
-    // Create assignment from ticket (new structure)
+    // When ticket is linked to an assignment, we already updated it to completed above. Do not create a second assignment.
+    // Create assignment from ticket only when ticket is not linked to an existing assignment.
     let homeworkAssignmentId: Types.ObjectId | undefined;
-    if (student) {
+    if (ticket.assignmentId) {
+      homeworkAssignmentId = ticket.assignmentId;
+    } else if (student) {
       const studentUser = await UserModel.findById(student.userId);
       const reviewerUser = await UserModel.findById(decoded.userId);
       

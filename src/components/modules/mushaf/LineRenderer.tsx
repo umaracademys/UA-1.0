@@ -3,8 +3,12 @@
 import type { LineData, WordPosition } from "@/lib/mushaf/qpcLineLayout";
 import type { PersonalMushafMistake } from "@/lib/db/models/PersonalMushaf";
 
+/** V1 layout line types from qpc-v1-15-lines.db */
+export type LineType = "surah_name" | "basmallah" | "ayah";
+
 interface LineRendererProps {
   line: LineData;
+  pageNumber: number;
   pageWidth: number;
   mistakes: PersonalMushafMistake[];
   onWordClick?: (
@@ -19,203 +23,186 @@ interface LineRendererProps {
   ) => void;
   hoveredWord: number | null;
   setHoveredWord: (wordIndex: number | null) => void;
+  /** When surah_name or basmallah, render centered header with 'Surah Names' font */
+  lineType?: LineType;
+  /** Text for surah_name or basmallah lines */
+  headerText?: string;
 }
 
+/** QPC V1 — @font-face named exactly 'QPC V1', path /data/Mushaf%20files/QPC%20V1%20Font.woff/p{N}.woff */
+const QPC_FONT_FAMILY = "'QPC V1', var(--font-amiri), 'Amiri Quran', serif";
+
+/** Surah Names — /data/Mushaf%20files/surah_names.woff; fallback if 404 */
+const SURAH_NAMES_FONT = "'Surah Names', var(--font-amiri), 'Amiri Quran', serif";
+
+const BISMILLAH_TEXT = "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ";
+
+/**
+ * 15-line grid: flex: 1 on each line. Ayah lines: display flex, row-reverse, justify-content space-between (full justification).
+ * Header lines (surah_name / basmallah): justify-content center, Surah Names font.
+ * onClick/onMouseDown on word spans for mistake marking.
+ */
 export function LineRenderer({
   line,
+  pageNumber,
   pageWidth,
   mistakes,
   onWordClick,
   hoveredWord,
   setHoveredWord,
+  lineType = "ayah",
+  headerText,
 }: LineRendererProps) {
-  const MARGIN_SIDE = 80;
-  const LINE_WIDTH = pageWidth - (2 * MARGIN_SIDE);
-  
-  // Calculate word widths based on text length
-  const wordWidths = line.words.map(word => {
-    // Estimate width: Arabic characters need ~20-25 pixels each at font size 28
-    const charCount = word.text.length;
-    return Math.max(charCount * 22, 40); // Minimum 40px width
+  const isHeaderLine = lineType === "surah_name" || lineType === "basmallah";
+  const displayText = isHeaderLine ? (lineType === "basmallah" ? BISMILLAH_TEXT : (headerText ?? "")) : null;
+
+  if (isHeaderLine && displayText !== null) {
+    return (
+      <div
+        className="mushaf-line mushaf-line-header"
+        role="row"
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "row",
+          flexWrap: "nowrap",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 0,
+          width: "100%",
+          margin: 0,
+          direction: "rtl",
+          textAlign: "center",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: SURAH_NAMES_FONT,
+            fontSize: "3.2vh",
+            lineHeight: 1,
+            color: "#3d3529",
+            fontWeight: "bold",
+          }}
+        >
+          {displayText}
+        </span>
+      </div>
+    );
+  }
+
+  const sortedWords = [...line.words].sort((a, b) => {
+    if (a.surah !== b.surah) return b.surah - a.surah;
+    if (a.ayah !== b.ayah) return b.ayah - a.ayah;
+    return b.wordIndex - a.wordIndex;
   });
-  
-  const totalWordsWidth = wordWidths.reduce((sum, w) => sum + w, 0);
-  
-  // Calculate spacing between words to distribute across the line
-  const totalSpacing = LINE_WIDTH - totalWordsWidth;
-  const spaceBetweenWords = line.words.length > 1 
-    ? totalSpacing / (line.words.length + 1) 
-    : totalSpacing / 2;
-  
-  // Position words from RIGHT to LEFT (Arabic direction)
-  let currentX = pageWidth - MARGIN_SIDE - spaceBetweenWords;
-  
+
   return (
-    <g>
-      {/* Line guide (for debugging in development) */}
-      {process.env.NODE_ENV === 'development' && (
-        <line
-          x1={MARGIN_SIDE}
-          y1={line.y}
-          x2={pageWidth - MARGIN_SIDE}
-          y2={line.y}
-          stroke="#eee"
-          strokeWidth="1"
-          strokeDasharray="5,5"
-          opacity="0.5"
-        />
-      )}
-      
-      {/* Render words in this line (RIGHT to LEFT) */}
-      {line.words.map((word, wordIndex) => {
-        const wordWidth = wordWidths[wordIndex];
-        const wordY = line.y;
-        const wordHeight = line.height;
-        
-        // Position: word allocated space (right to left)
-        const wordRightEdge = currentX;
-        const wordLeftEdge = currentX - wordWidth;
-        const textCenterX = wordLeftEdge + wordWidth / 2; // Center of allocated space
-        
-        // Update position for next word (move left)
-        currentX = wordLeftEdge - spaceBetweenWords;
-        
-        // Find mistakes for this word
+    <div
+      className="mushaf-line"
+      role="row"
+      style={{
+        flex: 1,
+        display: "flex",
+        flexDirection: "row-reverse",
+        flexWrap: "nowrap",
+        alignItems: "center",
+        justifyContent: "space-between",
+        minHeight: 0,
+        width: "100%",
+        margin: 0,
+        overflow: "visible",
+        gap: 0,
+        direction: "rtl",
+        textAlign: "right",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {sortedWords.map((word, wordIndex) => {
         const wordMistakes = mistakes.filter(
-          m => m.page === word.page && 
-               m.wordIndex === word.wordIndex &&
-               m.surah === word.surah &&
-               m.ayah === word.ayah
+          (m) =>
+            m.page === word.page &&
+            m.wordIndex === word.wordIndex &&
+            m.surah === word.surah &&
+            m.ayah === word.ayah
         );
-        
-        // Check if this is the last word of the ayah
-        const isLastWordOfAyah = word.isLastWordOfAyah || 
-          (wordIndex === line.words.length - 1) ||
-          (wordIndex < line.words.length - 1 && 
-           line.words[wordIndex + 1].ayah !== word.ayah);
-        
-        // Vertical alignment: text baseline is at wordY
-        // Text typically extends from wordY - 20px (top) to wordY + 8px (bottom) for fontSize 28
-        const textTop = wordY - 20;
-        const textBottom = wordY + 8;
-        const textHeight = textBottom - textTop;
-        
-        // Calculate clickable area to match actual text width more precisely
-        // Arabic text width is typically 15-20px per character at fontSize 28
-        const estimatedTextWidth = Math.max(word.text.length * 16, 35);
-        const clickableLeftX = textCenterX - estimatedTextWidth / 2;
-        const clickableWidth = estimatedTextWidth;
-        
         return (
-          <g key={`word-${word.page}-${word.surah}-${word.ayah}-${word.wordIndex}`}>
-            {/* Mistake highlights BEHIND text - use allocated word space */}
-            {wordMistakes.map((mistake, mistakeIndex) => (
-              <rect
-                key={`mistake-${wordIndex}-${mistakeIndex}-${mistake.page}-${mistake.surah}-${mistake.ayah}`}
-                x={wordLeftEdge - 2}
-                y={textTop - 2}
-                width={wordWidth + 4}
-                height={textHeight + 4}
-                rx="4"
-                fill="rgba(239, 68, 68, 0.2)"
-                stroke="#dc2626"
-                strokeWidth="2"
-              />
-            ))}
-            
-            {/* Invisible clickable area - exactly matches text bounds */}
-            <rect
-              x={clickableLeftX}
-              y={textTop}
-              width={clickableWidth}
-              height={textHeight}
-              fill="transparent"
-              className="cursor-pointer"
-              onClick={(e) => {
-                onWordClick?.(
-                  word.page,
-                  word.wordIndex,
-                  undefined,
-                  { x: textCenterX, y: wordY },
-                  word.text,
-                  undefined,
-                  word.surah,
-                  word.ayah
-                );
-              }}
-              onMouseEnter={() => setHoveredWord(word.wordIndex)}
-              onMouseLeave={() => setHoveredWord(null)}
-              style={{
-                fill: hoveredWord === word.wordIndex ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                transition: 'fill 0.1s ease',
-              }}
-            />
-            
-            {/* The actual Arabic text - centered in allocated space */}
-            <text
-              x={textCenterX}
-              y={wordY}
-              textAnchor="middle"
-              fontSize="28"
-              fontFamily="'Amiri Quran', 'Scheherazade New', 'Traditional Arabic', 'Amiri', serif"
-              fill={hoveredWord === word.wordIndex ? "#3b82f6" : "#000"}
-              className="quran-text"
-              style={{ 
-                pointerEvents: 'none', // Let rect handle clicks for precise area
-                userSelect: 'none',
-                fontWeight: hoveredWord === word.wordIndex ? "bold" : "normal",
-              }}
-            >
-              {word.text}
-            </text>
-            
-            {/* Ayah number marker (at end of ayah) */}
-            {isLastWordOfAyah && (
-              <AyahMarker
-                x={wordLeftEdge - 20}
-                y={wordY}
-                ayah={word.ayah}
+          <span
+            key={`page-${pageNumber}-word-${word.surah}-${word.ayah}-${word.wordIndex}`}
+            style={{
+              position: "relative",
+              display: "inline-flex",
+              alignItems: "center",
+              paddingLeft: 4,
+              paddingRight: 4,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            {/* Mistake highlight behind text */}
+            {wordMistakes.length > 0 && (
+              <span
+                className="mistake-highlight"
+                style={{
+                  position: "absolute",
+                  inset: "-2px -4px -2px -4px",
+                  borderRadius: 4,
+                  background: "rgba(239, 68, 68, 0.2)",
+                  border: "2px solid #dc2626",
+                  zIndex: 0,
+                  pointerEvents: "none",
+                }}
               />
             )}
-          </g>
+            {/* Interactive: onClick/onMouseDown for mistake marking; golden glow/underline on hover */}
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={() =>
+                onWordClick?.(word.page, word.wordIndex, undefined, undefined, word.text, undefined, word.surah, word.ayah)
+              }
+              onMouseDown={() =>
+                onWordClick?.(word.page, word.wordIndex, undefined, undefined, word.text, undefined, word.surah, word.ayah)
+              }
+              onMouseEnter={() => setHoveredWord(word.wordIndex)}
+              onMouseLeave={() => setHoveredWord(null)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onWordClick?.(word.page, word.wordIndex, undefined, undefined, word.text, undefined, word.surah, word.ayah);
+                }
+              }}
+              style={{
+                fontFamily: QPC_FONT_FAMILY,
+                fontSize: "3.5vh",
+                lineHeight: 1,
+                position: "relative",
+                zIndex: 1,
+                cursor: "pointer",
+                color: hoveredWord === word.wordIndex ? "#5c4a32" : "#2d261a",
+                fontWeight: "normal",
+                transition: "color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease",
+                display: "inline-block",
+                whiteSpace: "nowrap",
+                fontSynthesis: "none",
+                background:
+                  hoveredWord === word.wordIndex
+                    ? "radial-gradient(ellipse 80% 60% at 50% 50%, rgba(197, 160, 89, 0.18), transparent 70%)"
+                    : "transparent",
+                borderRadius: 4,
+                padding: "2px 4px",
+                boxShadow:
+                  hoveredWord === word.wordIndex
+                    ? "0 1px 0 0 rgba(197, 160, 89, 0.5)"
+                    : "none",
+              }}
+              className="mushaf-word quran-text mushaf-word-interactive"
+            >
+              {word.text || ""}
+            </span>
+          </span>
         );
       })}
-    </g>
+    </div>
   );
 }
 
-function AyahMarker({ x, y, ayah }: { x: number; y: number; ayah: number }) {
-  // Convert to Arabic-Indic numerals
-  const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-  const ayahNum = String(ayah)
-    .split('')
-    .map(digit => {
-      const d = parseInt(digit);
-      return isNaN(d) ? digit : arabicNumerals[d];
-    })
-    .join('');
-  
-  return (
-    <g>
-      <circle
-        cx={x}
-        cy={y - 10}
-        r="14"
-        fill="none"
-        stroke="#d4af37"
-        strokeWidth="2"
-      />
-      <text
-        x={x}
-        y={y - 5}
-        textAnchor="middle"
-        fontSize="12"
-        fontFamily="'Amiri Quran', serif"
-        fill="#d4af37"
-        fontWeight="bold"
-      >
-        {ayahNum}
-      </text>
-    </g>
-  );
-}

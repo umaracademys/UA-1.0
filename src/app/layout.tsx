@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Amiri } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SocketProvider } from "@/contexts/SocketContext";
@@ -16,6 +16,15 @@ const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
+  preload: false,
+});
+
+// Amiri: bundled Arabic font for Mushaf so text renders offline (no runtime Google Fonts dependency)
+const amiri = Amiri({
+  weight: "400",
+  subsets: ["arabic"],
+  variable: "--font-amiri",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -31,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} font-sans antialiased`}
+        className={`${inter.variable} ${amiri.variable} font-sans antialiased`}
       >
         <ErrorBoundary>
           <ThemeProvider>

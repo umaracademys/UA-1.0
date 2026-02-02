@@ -81,11 +81,19 @@ export async function GET(
       }
     }
     
-    // All sources failed
-    return NextResponse.json(
-      { error: "Failed to fetch Mushaf page image from all sources." },
-      { status: 404 }
+    // All sources failed: return a 1x1 transparent PNG so the client gets 200
+    // and does not trigger img onError / 404. QPC text remains the main content.
+    const placeholderPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64"
     );
+    return new NextResponse(placeholderPng, {
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=60",
+        "X-Mushaf-Placeholder": "1",
+      },
+    });
   } catch (error) {
     console.error("Error fetching Mushaf page:", error);
     return NextResponse.json(

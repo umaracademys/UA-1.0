@@ -2,22 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Arabic Font for Quran Text */
+/* Arabic Font for Quran Text (fallback when local fonts not used) */
 @import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Scheherazade+New:wght@400;700&display=swap');
 
-/* Quran text styling */
-.quran-text {
-  font-family: 'Amiri Quran', 'Scheherazade New', 'Traditional Arabic', 'Amiri', serif;
-  font-size: 28px;
-  line-height: 1.8;
+/* Local Mushaf fonts (offline): public/data/Mushaf files/ */
+
+/* Surah headers & Bismillah — encoded path to avoid 404; fallback in font-family below */
+@font-face {
+  font-family: 'Surah Names';
+  src: url('/data/Mushaf%20files/surah_names.woff') format('woff');
+  font-display: swap;
+}
+
+/* Quran text: QPC V1 Font — public/data/Mushaf files/QPC V1 Font.woff/ (p1–p604 .woff) */
+@font-face {
+  font-family: 'QPC V1';
+  src: url('/data/Mushaf%20files/QPC%20V1%20Font.woff') format('woff'),
+       url('/data/Mushaf%20files/QPC%20V1%20Font.woff/p1.woff') format('woff');
+  font-display: swap;
+}
+
+/* Mushaf paper theme */
+:root {
+  --mushaf-paper: #FBF7EF;
+  --mushaf-ink: #2d261a;
+  --mushaf-accent: #C5A059;
+}
+
+/* Dense 15-line grid: percentage padding (4% 7%) so margins scale with screen; flex: 1 + min-height: 0 per line */
+.mushaf-lines {
+  padding: 4% 7% !important;
+  box-sizing: border-box;
+  row-gap: 0 !important;
+  gap: 0 !important;
+  margin: 0 !important;
+}
+
+.mushaf-line {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: 0 !important;
   direction: rtl;
-  text-align: center;
-  color: #000;
-  letter-spacing: 0.5px;
-  user-select: none;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mushaf-line-header {
+  justify-content: center;
+}
+
+.quran-text {
+  font-family: 'QPC V1', serif;
+  font-size: 3.5vh;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mushaf-word {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  font-family: 'QPC V1', var(--font-amiri), 'Amiri Quran', serif;
+}
+/* Interactive word: golden glow on hover, 0.2s ease */
+.mushaf-word-interactive {
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.mushaf-word-interactive:hover {
+  color: #5c4a32;
+}
+/* Surah header frame: gold/bronze horizontal lines */
+.mushaf-header-frame {
+  border-top: 1px solid var(--mushaf-accent);
+  border-bottom: 1px solid var(--mushaf-accent);
 }
 
 /* Dark mode support */

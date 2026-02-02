@@ -110,7 +110,7 @@ export async function PUT(request: Request, context: { params: { assignmentId: s
     if (homework?.items && Array.isArray(homework.items)) {
       for (const item of homework.items) {
         // Validate type
-        if (!["sabq", "sabqi", "manzil"].includes(item.type)) {
+        if (!["sabq", "sabqi", "manzil", "revision", "special_practice"].includes(item.type)) {
           return NextResponse.json(
             { success: false, message: `Invalid homework item type: ${item.type}` },
             { status: 400 },

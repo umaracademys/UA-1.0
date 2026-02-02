@@ -132,6 +132,12 @@ export const MISTAKE_TYPES: MistakeType[] = [
     description: "Incorrect emphasis on letter",
   },
   {
+    value: "hesitation",
+    label: "Hesitation",
+    category: "other",
+    description: "Student hesitated or paused during recitation",
+  },
+  {
     value: "other",
     label: "Other",
     category: "other",

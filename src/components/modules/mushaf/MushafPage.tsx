@@ -20,7 +20,7 @@ type WordPosition = {
 
 type MushafPageProps = {
   pageNumber: number;
-  zoom: number;
+  zoom?: number;
   mistakes: PersonalMushafMistake[];
   historicalMistakes: PersonalMushafMistake[];
   showHistoricalMistakes: boolean;
@@ -37,24 +37,13 @@ type MushafPageProps = {
   onMistakeClick?: (mistake: PersonalMushafMistake) => void;
 };
 
-import { getPageWords, type WordPosition as QPCWordPosition } from "@/lib/mushaf/qpcData";
-import { SURAHS } from "@/lib/mushaf/surahData";
+import { SURAHS, getSurahById, getSurahByPage } from "@/lib/mushaf/surahData";
 
-// Convert QPC word positions to component format
-const getWordPositions = (page: number): (WordPosition & { text?: string; surah?: number; ayah?: number })[] => {
-  const qpcWords = getPageWords(page);
-  return qpcWords.map((word) => ({
-    x: word.position.x,
-    y: word.position.y,
-    width: word.position.width,
-    height: word.position.height,
-    wordIndex: word.wordIndex,
-    letterIndex: undefined,
-    text: word.text,
-    surah: word.surah,
-    ayah: word.ayah,
-  }));
-};
+type LayoutMetaLine = { line_number: number; line_type: string; surah_number?: number };
+
+/** Font path: /data/Mushaf%20files/QPC%20V1%20Font.woff/p${pageNumber}.woff — @font-face named exactly 'QPC V1' */
+const QPC_PAGE_FONT_URL = (n: number) => `/data/Mushaf%20files/QPC%20V1%20Font.woff/p${n}.woff`;
+const QPC_FONT_FAMILY = "QPC V1";
 
 /**
  * Calculate which letter was clicked within a word
@@ -191,65 +180,88 @@ export function MushafPage({
   const [qpcDataLoaded, setQpcDataLoaded] = useState(false);
   const [isLoadingQPC, setIsLoadingQPC] = useState(false);
   const [pageLayout, setPageLayout] = useState<PageLayout | null>(null);
+  const [layoutMeta, setLayoutMeta] = useState<LayoutMetaLine[]>([]);
+  const [surahForPage, setSurahForPage] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+  const qpcFontStyleRef = useRef<HTMLStyleElement | null>(null);
+  const loadingRef = useRef(false);
+  const loadLoggedForPageRef = useRef<number | null>(null);
+
+  // Page-specific font: @font-face named exactly 'QPC V1', path /data/Mushaf%20files/QPC%20V1%20Font.woff/p${pageNumber}.woff
+  useEffect(() => {
+    document.querySelectorAll('[id^="qpc-page-font-"]').forEach((el) => el.remove());
+    document.querySelectorAll('[id^="qpc-page-font-preload-"]').forEach((el) => el.remove());
+    qpcFontStyleRef.current = null;
+
+    const fontPath = QPC_PAGE_FONT_URL(pageNumber);
+    const id = `qpc-page-font-${pageNumber}`;
+
+    const preload = document.createElement("link");
+    preload.id = `qpc-page-font-preload-${pageNumber}`;
+    preload.rel = "preload";
+    preload.as = "font";
+    preload.type = "font/woff";
+    preload.href = fontPath;
+    preload.crossOrigin = "anonymous";
+    document.head.appendChild(preload);
+
+    const style = document.createElement("style");
+    style.id = id;
+    style.textContent = `@font-face { font-family: '${QPC_FONT_FAMILY}'; src: url('${fontPath}') format('woff'); font-display: swap; }`;
+    document.head.appendChild(style);
+    qpcFontStyleRef.current = style;
+
+    return () => {
+      preload.remove();
+      if (qpcFontStyleRef.current?.parentNode) {
+        qpcFontStyleRef.current.parentNode.removeChild(qpcFontStyleRef.current);
+      }
+      qpcFontStyleRef.current = null;
+    };
+  }, [pageNumber]);
 
   useEffect(() => {
-    let isMounted = true;
-    let timeoutId: NodeJS.Timeout | undefined;
-    
-    // Reset states when page changes
+    // Clean state: reset all metadata and words so no ghost Surah names or stale data
     setWordPositions([]);
+    setPageLayout(null);
+    setLayoutMeta([]);
+    setSurahForPage(null);
     setQpcDataLoaded(false);
-    setPageLayout(null); // Reset layout
-    setIsLoadingQPC(false); // Reset loading state
+    setIsLoadingQPC(false);
     setImageLoading(true);
     setImageError(false);
-    setCdnSourceIndex(0);
-    
-    // Load word positions for current page
+    setCdnSourceIndex(1);
+
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+
+    let isMounted = true;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const abortController = new AbortController();
+
+    /* API reads local files only: public/data/Mushaf files/qpc-v1-15-lines.db + qpc-v1-glyph-codes-wbw.db (fallback: qpc-v4) */
+    const apiUrl = `/api/qpc/page/${pageNumber}`;
     const loadPageData = async () => {
-      if (isLoadingQPC) {
-        console.log(`[MushafPage] Already loading, skipping duplicate request`);
-        return;
-      }
-      
       setIsLoadingQPC(true);
       try {
-        console.log(`[MushafPage] ===== Loading QPC data for page ${pageNumber} =====`);
+        if (loadLoggedForPageRef.current !== pageNumber) {
+          loadLoggedForPageRef.current = pageNumber;
+          console.log(`[MushafPage] Loading QPC data for page ${pageNumber} — ${apiUrl}`);
+        }
         
-        // Add timeout to prevent hanging
-        const fetchWithTimeout = (url: string, timeout = 8000) => {
-          const controller = new AbortController();
-          let timeoutHandle: NodeJS.Timeout;
-          
-          const timeoutPromise = new Promise<Response>((_, reject) => {
-            timeoutHandle = setTimeout(() => {
-              controller.abort();
-              reject(new Error('Request timeout'));
-            }, timeout);
-          });
-          
-          return Promise.race([
-            fetch(url, { signal: controller.signal }).finally(() => {
-              if (timeoutHandle) clearTimeout(timeoutHandle);
-            }),
-            timeoutPromise
-          ]);
-        };
-        
-        // Try to load from QPC API first
-        const apiUrl = `/api/qpc/page/${pageNumber}`;
-        console.log(`[MushafPage] Fetching from: ${apiUrl}`);
+        const timeout = 8000;
+        timeoutId = setTimeout(() => abortController.abort(), timeout);
         
         try {
-          const response = await fetchWithTimeout(apiUrl, 8000);
+          const response = await fetch(apiUrl, { signal: abortController.signal });
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = undefined;
+          }
           console.log(`[MushafPage] Response status: ${response.status}, ok: ${response.ok}`);
           
-          if (!isMounted) {
-            console.log(`[MushafPage] Component unmounted before processing response`);
-            return;
-          }
+          if (!isMounted) return;
           
           if (response.ok) {
             const data = await response.json();
@@ -272,42 +284,39 @@ export function MushafPage({
             }
             
             if (data.words && Array.isArray(data.words) && data.words.length > 0) {
+              if (abortController.signal.aborted) return;
               console.log(`[MushafPage] ✓ Processing ${data.words.length} words from API...`);
               console.log(`[MushafPage] Layout data:`, data.layout ? `${data.layout.lines.length} lines` : "not available");
               
-              // Convert API response to component format
-              const positions = data.words.map((word: any, idx: number) => {
-                const pos = {
-                  x: word.position?.x ?? 0,
-                  y: word.position?.y ?? 0,
-                  width: word.position?.width ?? 40,
-                  height: word.position?.height ?? 30,
-                  wordIndex: word.wordIndex ?? idx,
-                  letterIndex: undefined as number | undefined,
-                  text: word.text ?? "",
-                  surah: word.surah ?? 0,
-                  ayah: word.ayah ?? 0,
-                  lineNumber: word.lineNumber ?? 1,
-                };
-                if (idx === 0) {
-                  console.log(`[MushafPage] First word sample:`, pos);
-                }
-                return pos;
-              });
+              const positions = data.words.map((word: any, idx: number) => ({
+                x: word.position?.x ?? 0,
+                y: word.position?.y ?? 0,
+                width: word.position?.width ?? 40,
+                height: word.position?.height ?? 30,
+                wordIndex: word.wordIndex ?? idx,
+                letterIndex: undefined as number | undefined,
+                text: word.text ?? "",
+                surah: word.surah ?? 0,
+                ayah: word.ayah ?? 0,
+                lineNumber: word.lineNumber ?? 1,
+              }));
               
               console.log(`[MushafPage] ✓ Converted ${positions.length} positions`);
               console.log(`[MushafPage] Setting state: qpcDataLoaded=true, wordPositions.length=${positions.length}`);
               
-              if (isMounted) {
+              if (isMounted && !abortController.signal.aborted) {
                 setWordPositions(positions);
-                setQpcDataLoaded(true);
-                
-                // Store layout data for line-based rendering
+                if (data.layoutMeta && Array.isArray(data.layoutMeta)) {
+                  setLayoutMeta(data.layoutMeta);
+                }
+                const apiSurah = data.surahForPage != null ? data.surahForPage : positions[0]?.surah ?? null;
+                setSurahForPage(apiSurah);
                 if (data.layout && data.layout.lines && data.layout.lines.length > 0) {
                   setPageLayout(data.layout);
-                  console.log(`[MushafPage] Layout stored: ${data.layout.lines.length} lines`);
+                  setQpcDataLoaded(true);
+                  console.log(`[MushafPage] Layout stored: ${data.layout.lines.length} lines, surahForPage=${apiSurah}`);
                 } else {
-                  // Create fallback layout from words if API didn't provide one
+                  // Fallback: create layout from words so page isn't left blank when API didn't return layout
                   console.log(`[MushafPage] Creating fallback layout from ${positions.length} words...`);
                   try {
                     const { organizeWordsIntoLines } = await import("@/lib/mushaf/qpcLineLayout");
@@ -323,15 +332,15 @@ export function MushafPage({
                       setPageLayout(fallbackLayout);
                       console.log(`[MushafPage] ✓ Fallback layout created: ${fallbackLayout.lines.length} lines`);
                     } else {
-                      console.warn(`[MushafPage] ✗ Failed to create fallback layout`);
+                      console.warn(`[MushafPage] ✗ Fallback layout failed; will show word count only`);
                     }
                   } catch (layoutError: any) {
                     console.error(`[MushafPage] ✗ Error creating fallback layout:`, layoutError.message);
                   }
+                  setQpcDataLoaded(true);
                 }
-                
-                setIsLoadingQPC(false); // Reset loading state AFTER setting layout
-                console.log(`[MushafPage] ✓ State updated successfully`);
+                setIsLoadingQPC(false);
+                console.log(`[MushafPage] ✓ State updated: wordPositions.length=${positions.length}`);
               }
             } else {
               console.warn(`[MushafPage] ✗ Invalid words data:`, {
@@ -361,6 +370,10 @@ export function MushafPage({
             setIsLoadingQPC(false);
             return;
           }
+          if (fetchError?.name === "AbortError") {
+            setIsLoadingQPC(false);
+            return;
+          }
           console.error(`[MushafPage] ✗ Fetch error:`, fetchError.message);
           setQpcDataLoaded(false);
           setWordPositions([]);
@@ -385,19 +398,18 @@ export function MushafPage({
     
     loadPageData();
     
-    // Start with local image, will fallback to CDN if needed
-    const pageStr = pageNumber.toString().padStart(3, "0");
-    setImageSrc(`/mushaf-pages/page-${pageStr}.png`);
+    // Prefer API (serves CDN or placeholder) to avoid 404s when local files are missing
+    setImageSrc(`/api/mushaf/page/${pageNumber}`);
     
-    // Cleanup
+    // Cleanup: abort in-flight fetch so only one request can update state; allow next page to load
     return () => {
       isMounted = false;
-      setIsLoadingQPC(false); // Reset loading state on unmount
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      loadingRef.current = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      abortController.abort();
+      setIsLoadingQPC(false);
     };
-  }, [pageNumber]); // Only depend on pageNumber to prevent infinite loops
+  }, [pageNumber]);
 
   const handleWordClick = (
     wordIndex: number,
@@ -410,8 +422,8 @@ export function MushafPage({
     const svgRect = svgRef.current?.getBoundingClientRect();
     if (!svgRect) return;
     
-    const clickX = (event.clientX - svgRect.left) / zoom;
-    const clickY = (event.clientY - svgRect.top) / zoom;
+    const clickX = event.clientX - svgRect.left;
+    const clickY = event.clientY - svgRect.top;
     
     // Calculate letter index if word text is available
     let letterIndex: number | undefined = undefined;
@@ -455,147 +467,154 @@ export function MushafPage({
 
   const pageMistakes = allMistakes.filter((m) => m.page === pageNumber);
 
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development" || !qpcDataLoaded) return;
+    const words = wordPositions?.length ?? 0;
+    const lines = pageLayout?.lines?.length ?? 0;
+    console.log(`[MushafPage] pageNumber=${pageNumber} words=${words} lines=${lines} qpcDataLoaded=true`);
+  }, [pageNumber, wordPositions?.length, pageLayout?.lines?.length, qpcDataLoaded]);
+
+  const hasPageLayout = Boolean(pageLayout?.lines?.length);
+  const showLoaderOnly = !hasPageLayout && isLoadingQPC;
+
   return (
-    <div className="relative flex items-start justify-center bg-neutral-100 overflow-auto" style={{ minHeight: "100vh", padding: "20px" }}>
-      <div
-        className="relative"
-        style={{
-          transform: `scale(${zoom})`,
-          transformOrigin: "top center",
-          transition: "transform 0.2s ease",
-          maxWidth: "90vw",
-          maxHeight: "85vh",
-        }}
-      >
-        {/* Mushaf Page Image or Text Rendering */}
-        <div className="relative">
-          {/* Debug info - always show in dev */}
-          {process.env.NODE_ENV === "development" && (
-            <div className="absolute top-0 left-0 bg-yellow-100 p-2 text-xs z-50 border border-yellow-400 max-w-xs">
-              <div className="font-bold">Debug Info:</div>
-              <div>qpcDataLoaded: {qpcDataLoaded ? "true" : "false"}</div>
-              <div>wordPositions: {Array.isArray(wordPositions) ? wordPositions.length : "NOT ARRAY"}</div>
-              <div>imageError: {imageError ? "true" : "false"}</div>
-              <div>imageLoading: {imageLoading ? "true" : "false"}</div>
-              <div>pageNumber: {pageNumber}</div>
-              {Array.isArray(wordPositions) && wordPositions.length > 0 && (
-                <div>First word: surah={wordPositions[0]?.surah}, ayah={wordPositions[0]?.ayah}, text={wordPositions[0]?.text?.substring(0, 20)}</div>
-              )}
+    <div
+      className="relative overflow-hidden bg-neutral-200"
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100vh",
+        width: "100vw",
+        overflow: "hidden",
+        padding: 0,
+        direction: "rtl",
+      }}
+      data-mushaf-container
+      data-mushaf-root
+    >
+      <div className="relative flex items-center justify-center" style={{ width: "100%", height: "100%" }}>
+        {/* Single loader: only when no pageLayout and loading */}
+        {showLoaderOnly ? (
+          <div
+            className="flex items-center justify-center overflow-hidden rounded-lg"
+            style={{
+              height: "96vh",
+              aspectRatio: "1000 / 1414",
+              maxWidth: "95vw",
+              maxHeight: "95vh",
+              background: "#FBF7EF",
+            }}
+          >
+            <div className="text-center">
+              <div className="mb-4 h-10 w-10 animate-spin rounded-full border-2 border-[#F5F0E8] border-t-[#C5A059] mx-auto" />
+              <p className="text-[#5c4a32] text-sm">Loading page {pageNumber}…</p>
             </div>
-          )}
-          
-          {/* Show loading state - only when actually loading and no data AND no layout */}
-          {isLoadingQPC && !pageLayout && wordPositions.length === 0 && !qpcDataLoaded ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#fffef9] z-10" style={{ width: "1000px", height: "1414px" }}>
-              <div className="text-center">
-                <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-neutral-200 border-t-primary mx-auto" />
-                <p className="text-neutral-600">Loading page {pageNumber}...</p>
-              </div>
-            </div>
-          ) : null}
-          
-          {/* Show QPC text rendering if we have data - LINE-BASED RENDERING */}
-          {pageLayout && pageLayout.lines && pageLayout.lines.length > 0 ? (
-            // Render Quran text using LINE-BASED layout
-            <div className="relative bg-[#fffef9] overflow-hidden shadow-2xl" style={{ width: "1000px", height: "1414px", direction: "rtl" }}>
-              <svg
-                ref={svgRef}
-                width="1000"
-                height="1414"
-                viewBox="0 0 1000 1414"
-                style={{ direction: "rtl", display: "block" }}
-                preserveAspectRatio="xMidYMid meet"
-              >
-                {/* Background */}
-                <rect width="1000" height="1414" fill="#fffef9" />
-                
-                {/* Decorative border */}
-                <rect x="30" y="30" width="940" height="1354" fill="none" stroke="#d4af37" strokeWidth="2" rx="8" />
-                
-                {/* Page number at top */}
-                <text
-                  x="500"
-                  y="60"
-                  textAnchor="middle"
-                  fontSize="18"
-                  fontFamily="'Amiri Quran', serif"
-                  fill="#888"
+          </div>
+        ) : hasPageLayout ? (
+          /* Letterbox page sheet: full container width (no horizontal scroll); vertical scroll allowed */
+          <div
+            key={`mushaf-page-${pageNumber}`}
+            className="relative mushaf-page-paper overflow-hidden"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              height: "98vh",
+              width: "auto",
+              aspectRatio: "1000 / 1414",
+              maxWidth: "100%",
+              maxHeight: "98vh",
+              background: "#FBF7EF",
+              direction: "rtl",
+              flexShrink: 0,
+              boxShadow: [
+                "inset 0 0 40px rgba(0,0,0,0.03)",
+                "0 4px 20px rgba(0,0,0,0.08)",
+                pageNumber % 2 === 1
+                  ? "inset 12px 0 28px -8px rgba(0,0,0,0.06)"
+                  : "inset -12px 0 28px -8px rgba(0,0,0,0.06)",
+              ].join(", "),
+              filter: "sepia(0.06)",
+              border: "none",
+              borderRadius: 2,
+            }}
+          >
+            {/* Page number; SVG contain so content never clips */}
+            <svg
+              ref={svgRef}
+              viewBox="0 0 1000 1414"
+              className="pointer-events-none absolute inset-0 w-full h-full"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <rect width="1000" height="1414" fill="#FBF7EF" />
+              <text x="500" y="52" textAnchor="middle" fontSize="16" fontFamily="var(--font-amiri), serif" fill="#5c4a32">
+                {pageNumber}
+              </text>
+            </svg>
+
+            {/* Dynamic line grid: use actual line count from DB (8 for page 1-2, 15 for rest); flex: 1 each */}
+            {(() => {
+              const layout = pageLayout!;
+              const LINES_COUNT = layoutMeta.length > 0 ? layoutMeta.length : 15;
+              const wordContainerFont = `'${QPC_FONT_FAMILY}', var(--font-amiri), 'Amiri Quran', serif`;
+              const emptyLine: PageLayout["lines"][0] = {
+                lineNumber: 0,
+                words: [],
+                width: 824,
+                height: 60,
+                y: 0,
+              };
+              const lineSlots = Array.from({ length: LINES_COUNT }, (_, i) => {
+                const lineNumber = i + 1;
+                const meta = layoutMeta.find((m) => m.line_number === lineNumber);
+                const lineType = (meta?.line_type ?? "ayah") as "surah_name" | "basmallah" | "ayah";
+                const line = layout.lines.find((l) => l.lineNumber === lineNumber) ?? { ...emptyLine, lineNumber };
+                const headerText =
+                  lineType === "surah_name" && meta?.surah_number != null
+                    ? getSurahById(meta.surah_number)?.arabicName ?? ""
+                    : undefined;
+                return { lineNumber, lineType, headerText, line };
+              });
+              return (
+                <div
+                  className="mushaf-lines"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    padding: "4% 7%",
+                    boxSizing: "border-box",
+                    display: "flex",
+                    flexDirection: "column",
+                    minHeight: 0,
+                    rowGap: 0,
+                    gap: 0,
+                    margin: 0,
+                    direction: "rtl",
+                    textAlign: "right",
+                    fontFamily: wordContainerFont,
+                  }}
                 >
-                  {pageNumber}
-                </text>
-                
-                {/* Surah Title Box (if first page of surah) */}
-                {(() => {
-                  const firstLine = pageLayout.lines[0];
-                  if (firstLine && firstLine.words.length > 0) {
-                    const firstWord = firstLine.words[0];
-                    if (firstWord && firstWord.surah) {
-                      const surahData = SURAHS.find((s) => s.id === firstWord.surah);
-                      if (surahData && surahData.startPage === pageNumber) {
-                        return (
-                          <g key="surah-title">
-                            <rect
-                              x="350"
-                              y="70"
-                              width="300"
-                              height="40"
-                              fill="none"
-                              stroke="#000"
-                              strokeWidth="1.5"
-                              rx="4"
-                            />
-                            <text
-                              x="500"
-                              y="95"
-                              fontSize="20"
-                              fontFamily="'Amiri Quran', 'Scheherazade New', serif"
-                              fill="#000"
-                              textAnchor="middle"
-                              fontWeight="bold"
-                            >
-                              {surahData.arabicName}
-                            </text>
-                          </g>
-                        );
-                      }
-                    }
-                  }
-                  return null;
-                })()}
-                
-                {/* Render each LINE using LineRenderer */}
-                {pageLayout.lines.map((line) => {
-                  // Convert line words to format expected by LineRenderer
-                  const lineWords = line.words.map(word => ({
-                    ...word,
-                    position: {
-                      x: 0, // Will be calculated by LineRenderer
-                      y: line.y,
-                      width: 0, // Will be calculated
-                      height: line.height
-                    }
-                  }));
-                  
-                  return (
-                    <LineRenderer
-                      key={`line-${line.lineNumber}`}
-                      line={{
-                        ...line,
-                        words: lineWords
-                      }}
-                      pageWidth={1000}
-                      mistakes={allMistakes}
-                      onWordClick={onWordClick}
-                      hoveredWord={hoveredWord}
-                      setHoveredWord={setHoveredWord}
-                    />
-                  );
-                })}
-              </svg>
+                    {lineSlots.map((slot, lineIndex) => (
+                      <LineRenderer
+                        key={`page-${pageNumber}-line-${lineIndex}`}
+                        pageNumber={pageNumber}
+                        line={slot.line}
+                        pageWidth={824}
+                        mistakes={allMistakes}
+                        onWordClick={onWordClick}
+                        hoveredWord={hoveredWord}
+                        setHoveredWord={setHoveredWord}
+                        lineType={slot.lineType}
+                        headerText={slot.headerText}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
             </div>
           ) : !isLoadingQPC && Array.isArray(wordPositions) && wordPositions.length > 0 && !pageLayout ? (
-            // Fallback: Use old rendering if layout not available
-            <div className="relative bg-[#fffef9] overflow-hidden shadow-2xl" style={{ width: "1000px", height: "1414px", direction: "rtl" }}>
+            // Fallback: layout not available
+            <div className="relative overflow-hidden shadow-2xl" style={{ width: "1000px", height: "1414px", background: "#FBF7EF", direction: "rtl" }}>
               <div className="p-8 text-center">
                 <p className="text-red-600">Layout data not available. Using fallback rendering.</p>
                 <p className="text-sm text-gray-500 mt-2">Words: {wordPositions.length}</p>
@@ -617,11 +636,11 @@ export function MushafPage({
               </div>
             </div>
           ) : wordPositions.length === 0 && !imageLoading ? (
-            // Show loading or error message
-            <div className="flex items-center justify-center h-[800px] bg-gray-50">
+            // Show when word data hasn’t loaded yet (e.g. QPC request in progress or failed)
+            <div className="flex items-center justify-center h-[800px] bg-neutral-50">
               <div className="text-center">
-                <p className="text-gray-600 mb-2">Loading Quran text...</p>
-                <p className="text-sm text-gray-500">If this persists, check the browser console for errors.</p>
+                <p className="text-neutral-600 mb-2">Loading page {pageNumber}…</p>
+                <p className="text-sm text-neutral-500">If the page doesn’t load, open the browser console (F12) to see any errors.</p>
               </div>
             </div>
           ) : (
@@ -659,26 +678,18 @@ export function MushafPage({
               style={{ display: imageLoading ? "none" : "block" }}
             />
           )}
-          {imageLoading && !imageError && (
-            <div className="flex min-h-[600px] w-full items-center justify-center bg-neutral-50">
-              <div className="text-center">
-                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
-                <p className="mt-4 text-sm text-neutral-500">Loading page {pageNumber}...</p>
-              </div>
-            </div>
-          )}
 
-          {/* SVG Overlay for Word Boundaries and Mistakes (only if image is loaded) */}
-          {!imageError && (
+          {/* SVG Overlay only when no pageLayout (image fallback path); unmounted when pageLayout is active */}
+          {!hasPageLayout && !imageError && (
             <svg
               ref={svgRef}
               className="absolute inset-0 h-full w-full"
               style={{ pointerEvents: "all" }}
             >
-            {/* Word Boundaries (if positions available) */}
+            {/* Word Boundaries (fallback when layout is image-based) */}
             {wordPositions.map((word, index) => (
               <rect
-                key={index}
+                key={`page-${pageNumber}-word-${index}`}
                 x={word.x}
                 y={word.y}
                 width={word.width}
@@ -746,7 +757,6 @@ export function MushafPage({
               ))}
             </>
           )}
-        </div>
       </div>
 
       {/* Page Number Overlay */}

@@ -23,10 +23,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, message: "Unauthorized." }, { status: 401 });
     }
 
-    const decoded = await verifyToken(token);
-    if (!checkAPIPermission(decoded.role, "system.settings", decoded.permissions)) {
-      return NextResponse.json({ success: false, message: "Forbidden." }, { status: 403 });
-    }
+    await verifyToken(token);
+    // Allow any authenticated user to read settings (logo, systemName, colorScheme) for sidebar/header. POST remains restricted.
 
     await connectToDatabase();
 
