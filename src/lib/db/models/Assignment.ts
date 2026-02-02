@@ -27,6 +27,14 @@ export type MistakeType =
   | "light_l"
   | "atkee";
 
+/** Tajweed issue in classwork (Portal legacy). */
+export interface ClassworkTajweedIssue {
+  type: string;
+  surahName?: string;
+  wordText?: string;
+  note?: string;
+}
+
 // Classwork Phase Schema
 export interface ClassworkPhase {
   type: ClassworkType;
@@ -38,6 +46,15 @@ export interface ClassworkPhase {
   toAyah?: number;
   surahNumber?: number;
   surahName?: string;
+  endSurahNumber?: number;
+  endSurahName?: string;
+  juzNumber?: number;
+  startAyahText?: string;
+  endAyahText?: string;
+  mistakeCount?: number | "weak";
+  tajweedIssues?: ClassworkTajweedIssue[];
+  fromTicketId?: string;
+  sabqEntryId?: string;
   createdAt: Date | string;
 }
 
@@ -187,6 +204,16 @@ export interface AssignmentDocument extends mongoose.Document {
 }
 
 // Sub-schemas
+const classworkTajweedIssueSchema = new Schema<ClassworkTajweedIssue>(
+  {
+    type: { type: String, required: true, trim: true },
+    surahName: { type: String, trim: true },
+    wordText: { type: String, trim: true },
+    note: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
 const classworkPhaseSchema = new Schema<ClassworkPhase>(
   {
     type: { type: String, enum: ["sabq", "sabqi", "manzil", "revision", "special_practice"], required: true },
@@ -198,6 +225,15 @@ const classworkPhaseSchema = new Schema<ClassworkPhase>(
     toAyah: { type: Number },
     surahNumber: { type: Number },
     surahName: { type: String, trim: true },
+    endSurahNumber: { type: Number },
+    endSurahName: { type: String, trim: true },
+    juzNumber: { type: Number },
+    startAyahText: { type: String, trim: true },
+    endAyahText: { type: String, trim: true },
+    mistakeCount: { type: Schema.Types.Mixed },
+    tajweedIssues: { type: [classworkTajweedIssueSchema], default: [] },
+    fromTicketId: { type: String, trim: true },
+    sabqEntryId: { type: String, trim: true },
     createdAt: { type: Date, required: true, default: Date.now },
   },
   { _id: false },

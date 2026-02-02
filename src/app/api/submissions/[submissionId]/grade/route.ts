@@ -91,7 +91,10 @@ export async function POST(request: Request, context: { params: { submissionId: 
       });
       const allGraded = allSubmissions.every((s) => s.gradedAt);
       if (allGraded) {
-        await AssignmentModel.findByIdAndUpdate(assignment._id, { status: "graded" });
+        await AssignmentModel.findByIdAndUpdate(assignment._id, {
+          status: "completed",
+          completedAt: new Date(),
+        });
       }
     }
 

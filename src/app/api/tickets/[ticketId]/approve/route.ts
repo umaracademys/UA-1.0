@@ -82,8 +82,12 @@ export async function POST(request: Request, context: { params: { ticketId: stri
     // Get student once for all operations
     const student = await StudentModel.findById(ticket.studentId);
 
-    // Add mistakes to student's Personal Mushaf
-    if (ticket.mistakes && ticket.mistakes.length > 0 && student) {
+    // Add mistakes to student's Personal Mushaf (from ticket.mistakes or sabqEntries)
+    const allTicketMistakes =
+      ticket.sabqEntries && ticket.sabqEntries.length > 0
+        ? ticket.sabqEntries.flatMap((se) => se.mistakes || [])
+        : ticket.mistakes || [];
+    if (allTicketMistakes.length > 0 && student) {
       const studentUser = await UserModel.findById(student.userId).select("fullName").lean();
       let personalMushaf = await PersonalMushafModel.findOne({ studentId: student._id });
 
@@ -96,24 +100,25 @@ export async function POST(request: Request, context: { params: { ticketId: stri
       }
 
       // Add each mistake to Personal Mushaf
-      for (const mistake of ticket.mistakes) {
+      for (const mistake of allTicketMistakes) {
+        const m = mistake as { type?: string; category?: string; page?: number; surah?: number; ayah?: number; wordIndex?: number; letterIndex?: number; position?: { x: number; y: number }; tajweedData?: unknown; note?: string; audioUrl?: string; timestamp?: Date };
         await personalMushaf.addMistake({
-          type: mistake.type,
-          category: mistake.category as "tajweed" | "letter" | "stop" | "memory" | "other",
-          page: mistake.page,
-          surah: mistake.surah,
-          ayah: mistake.ayah,
-          wordIndex: mistake.wordIndex,
-          letterIndex: mistake.letterIndex,
-          position: mistake.position,
-          tajweedData: mistake.tajweedData as any,
-          note: mistake.note,
-          audioUrl: mistake.audioUrl,
+          type: m.type || "other",
+          category: (m.category || "other") as "tajweed" | "letter" | "stop" | "memory" | "other",
+          page: m.page,
+          surah: m.surah,
+          ayah: m.ayah,
+          wordIndex: m.wordIndex,
+          letterIndex: m.letterIndex,
+          position: m.position,
+          tajweedData: m.tajweedData as any,
+          note: m.note,
+          audioUrl: m.audioUrl,
           ticketId: ticket._id,
           workflowStep: ticket.workflowStep,
           markedBy: reviewer._id,
           markedByName: reviewer.fullName,
-          timestamp: mistake.timestamp || new Date(),
+          timestamp: m.timestamp || new Date(),
         });
       }
     }
@@ -126,91 +131,243 @@ export async function POST(request: Request, context: { params: { ticketId: stri
     } else if (student) {
       const studentUser = await UserModel.findById(student.userId);
       const reviewerUser = await UserModel.findById(decoded.userId);
-      
+
       if (studentUser && reviewerUser) {
-        // Determine workflow step type
         const workflowType = ticket.workflowStep as "sabq" | "sabqi" | "manzil";
-        
-        // Get surah/ayah from first mistake if available
-        const firstMistake = ticket.mistakes && ticket.mistakes.length > 0 ? ticket.mistakes[0] : null;
-        const surah = firstMistake?.surah;
-        const ayah = firstMistake?.ayah;
-        
-        // Create classwork entry from ticket
-        const classworkEntry = {
-          type: workflowType,
-          assignmentRange: `Surah ${surah || "N/A"}, Ayah ${ayah || "N/A"}`,
-          details: body.reviewNotes || "",
-          surahNumber: surah,
-          surahName: "", // Ticket model doesn't have surahName
-          fromAyah: ayah,
-          toAyah: ayah,
-          createdAt: new Date(),
-        };
 
-        // Create classwork structure
-        const classwork = {
-          sabq: workflowType === "sabq" ? [classworkEntry] : [],
-          sabqi: workflowType === "sabqi" ? [classworkEntry] : [],
-          manzil: workflowType === "manzil" ? [classworkEntry] : [],
-        };
+        // Build classwork: loop through sabqEntries if present, else single entry from ticket
+        let sabqEntries: Array<{
+          type: "sabq" | "sabqi" | "manzil";
+          assignmentRange: string;
+          details?: string;
+          fromAyah?: number;
+          toAyah?: number;
+          surahNumber?: number;
+          surahName?: string;
+          endSurahNumber?: number;
+          endSurahName?: string;
+          juzNumber?: number;
+          startAyahText?: string;
+          endAyahText?: string;
+          mistakeCount?: number | "weak";
+          tajweedIssues?: Array<{ type: string; surahName?: string; wordText?: string; note?: string }>;
+          fromTicketId?: string;
+          sabqEntryId?: string;
+          createdAt: Date;
+        }> = [];
+        let sabqiEntries: typeof sabqEntries = [];
+        let manzilEntries: typeof sabqEntries = [];
 
-        // Create homework if provided
-        const homework = body.homeworkAssignmentData
-          ? {
-              enabled: true,
-              items: [
-                {
-                  type: workflowType,
-                  range: {
-                    mode: "surah_ayah" as const,
-                    from: {
-                      surah: surah || 1,
-                      surahName: "Al-Fatihah", // Ticket model doesn't have surahName
-                      ayah: ayah || 1,
-                    },
-                    to: {
-                      surah: surah || 1,
-                      surahName: "Al-Fatihah", // Ticket model doesn't have surahName
-                      ayah: ayah || 1,
-                    },
-                  },
-                  source: {
-                    suggestedFrom: "ticket" as const,
-                    ticketIds: [ticketId],
-                  },
-                  content: body.homeworkAssignmentData.instructions || body.homeworkAssignmentData.description || "",
-                },
-              ],
-            }
-          : { enabled: false };
+        const ticketIdStr = ticket._id.toString();
 
-        // Convert ticket mistakes to assignment mistakes
-        const mushafMistakes = (ticket.mistakes || []).map((mistake: any, index: number) => ({
-          id: `mistake-${ticket._id}-${index}`,
-          type: mistake.type || "other",
-          page: mistake.page || 1,
-          surah: mistake.surah || surah || 1,
-          ayah: mistake.ayah || ayah || 1,
-          wordIndex: mistake.wordIndex || 0,
-          position: mistake.position || { x: 0, y: 0 },
-          note: mistake.note || "",
-          audioUrl: mistake.audioUrl || "",
-          workflowStep: workflowType,
-          markedBy: reviewerUser._id.toString(),
-          markedByName: reviewerUser.fullName,
-          timestamp: mistake.timestamp || new Date(),
-        }));
+        if (ticket.sabqEntries && ticket.sabqEntries.length > 0) {
+          // Portal: one ClassworkPhase per sabqEntry
+          for (const se of ticket.sabqEntries) {
+            const rr = se.recitationRange || {};
+            const surahNum = rr.surahNumber ?? rr.endSurahNumber;
+            const endSurahNum = rr.endSurahNumber ?? rr.surahNumber;
+            const fromAyah = rr.startAyahNumber ?? rr.endAyahNumber ?? 0;
+            const toAyah = rr.endAyahNumber ?? rr.startAyahNumber ?? 0;
+            const surahName = rr.surahName || rr.endSurahName || "";
+            const assignmentRange =
+              surahNum && toAyah
+                ? surahNum === endSurahNum
+                  ? `Surah ${surahName || surahNum}, Ayah ${fromAyah}-${toAyah}`
+                  : `Surah ${surahName || surahNum}, Ayah ${fromAyah} → ${rr.endSurahName || endSurahNum}, Ayah ${toAyah}`
+                : `Surah ${surahName || "N/A"}, Ayah ${fromAyah}-${toAyah}`;
 
-        // Determine assignedByRole
-        let assignedByRole: "admin" | "super_admin" | "teacher" = "teacher";
-        if (reviewerUser.role === "admin") {
-          assignedByRole = "admin";
-        } else if (reviewerUser.role === "super_admin") {
-          assignedByRole = "super_admin";
+            const entry = {
+              type: "sabq" as const,
+              assignmentRange,
+              details: se.adminComment || body.reviewNotes || "",
+              fromAyah,
+              toAyah,
+              surahNumber: surahNum,
+              surahName,
+              endSurahNumber: endSurahNum,
+              endSurahName: rr.endSurahName || "",
+              juzNumber: rr.juzNumber,
+              startAyahText: rr.startAyahText,
+              endAyahText: rr.endAyahText,
+              mistakeCount: se.mistakeCount,
+              tajweedIssues: se.tajweedIssues,
+              fromTicketId: ticketIdStr,
+              sabqEntryId: se.id,
+              createdAt: new Date(),
+            };
+            sabqEntries.push(entry);
+          }
+
+          // If homeworkRange exists, add as extra Sabq classwork entry (Portal: "Homework: ...")
+          const hr = ticket.homeworkRange;
+          if (hr && (hr.surahNumber != null || hr.surahName)) {
+            const hSurah = hr.surahNumber ?? hr.endSurahNumber ?? 1;
+            const hFrom = hr.startAyahNumber ?? 1;
+            const hTo = hr.endAyahNumber ?? hr.startAyahNumber ?? 1;
+            const hName = hr.surahName || hr.endSurahName || "";
+            sabqEntries.push({
+              type: "sabq",
+              assignmentRange: `Homework: Surah ${hName || hSurah}, Ayah ${hFrom}-${hTo}`,
+              details: body.reviewNotes || "",
+              fromAyah: hFrom,
+              toAyah: hTo,
+              surahNumber: hSurah,
+              surahName: hName,
+              endSurahNumber: hr.endSurahNumber ?? hr.surahNumber,
+              endSurahName: hr.endSurahName || "",
+              juzNumber: hr.juzNumber,
+              startAyahText: hr.startAyahText,
+              endAyahText: hr.endAyahText,
+              fromTicketId: `${ticketIdStr}-homework`,
+              createdAt: new Date(),
+            });
+          }
+        } else {
+          // Fallback: single classwork entry from ticket.mistakes / recitationRange
+          const firstMistake = ticket.mistakes?.[0];
+          const rr = ticket.recitationRange;
+          const surah = firstMistake?.surah ?? rr?.surahNumber ?? rr?.endSurahNumber;
+          const ayah = firstMistake?.ayah ?? rr?.startAyahNumber ?? rr?.endAyahNumber;
+          const surahName = rr?.surahName || rr?.endSurahName || "";
+
+          const classworkEntry = {
+            type: workflowType,
+            assignmentRange: `Surah ${surahName || surah || "N/A"}, Ayah ${ayah || "N/A"}`,
+            details: body.reviewNotes || "",
+            surahNumber: surah,
+            surahName,
+            fromAyah: ayah,
+            toAyah: ayah,
+            createdAt: new Date(),
+          };
+          if (workflowType === "sabq") sabqEntries = [classworkEntry];
+          else if (workflowType === "sabqi") sabqiEntries = [classworkEntry];
+          else manzilEntries = [classworkEntry];
         }
 
-        // Create new assignment
+        const classwork = {
+          sabq: sabqEntries,
+          sabqi: sabqiEntries,
+          manzil: manzilEntries,
+        };
+
+        // Build homework: from homeworkRange and/or homeworkAssignmentData
+        const homeworkItems: Array<{
+          type: "sabq" | "sabqi" | "manzil";
+          range: {
+            mode: "surah_ayah";
+            from: { surah: number; surahName: string; ayah: number };
+            to: { surah: number; surahName: string; ayah: number };
+          };
+          source: { suggestedFrom: "ticket"; ticketIds: string[] };
+          content?: string;
+        }> = [];
+
+        const hr = ticket.homeworkRange;
+        if (hr && (hr.surahNumber != null || hr.surahName)) {
+          const fromSurah = hr.surahNumber ?? hr.endSurahNumber ?? 1;
+          const toSurah = hr.endSurahNumber ?? hr.surahNumber ?? fromSurah;
+          const fromAyah = hr.startAyahNumber ?? 1;
+          const toAyah = hr.endAyahNumber ?? hr.startAyahNumber ?? fromAyah;
+          const fromName = hr.surahName || "Al-Fatihah";
+          const toName = hr.endSurahName || hr.surahName || fromName;
+          homeworkItems.push({
+            type: "sabq",
+            range: {
+              mode: "surah_ayah",
+              from: { surah: fromSurah, surahName: fromName, ayah: fromAyah },
+              to: { surah: toSurah, surahName: toName, ayah: toAyah },
+            },
+            source: { suggestedFrom: "ticket", ticketIds: [ticketIdStr] },
+          });
+        }
+
+        if (body.homeworkAssignmentData) {
+          const firstRange = ticket.sabqEntries?.[0]?.recitationRange || ticket.recitationRange;
+          const s = firstRange?.surahNumber ?? firstRange?.endSurahNumber ?? 1;
+          const a = firstRange?.startAyahNumber ?? firstRange?.endAyahNumber ?? 1;
+          const sn = firstRange?.surahName || firstRange?.endSurahName || "Al-Fatihah";
+          homeworkItems.push({
+            type: workflowType,
+            range: {
+              mode: "surah_ayah",
+              from: { surah: s, surahName: sn, ayah: a },
+              to: { surah: s, surahName: sn, ayah: a },
+            },
+            source: { suggestedFrom: "ticket", ticketIds: [ticketIdStr] },
+            content: body.homeworkAssignmentData.instructions || body.homeworkAssignmentData.description || "",
+          });
+        }
+
+        const homework =
+          homeworkItems.length > 0
+            ? { enabled: true, items: homeworkItems }
+            : { enabled: false };
+
+        // Collect mushafMistakes from sabqEntries or ticket.mistakes
+        let mushafMistakes: Array<{
+          id: string;
+          type: string;
+          page: number;
+          surah: number;
+          ayah: number;
+          wordIndex: number;
+          position: { x: number; y: number };
+          note?: string;
+          audioUrl?: string;
+          workflowStep: string;
+          markedBy: string;
+          markedByName: string;
+          timestamp: Date;
+        }> = [];
+
+        if (ticket.sabqEntries && ticket.sabqEntries.length > 0) {
+          let idx = 0;
+          for (const se of ticket.sabqEntries) {
+            for (const m of se.mistakes || []) {
+              mushafMistakes.push({
+                id: `mistake-${ticket._id}-${idx}`,
+                type: (m as any).type || "other",
+                page: (m as any).page || 1,
+                surah: (m as any).surah ?? se.recitationRange?.surahNumber ?? 1,
+                ayah: (m as any).ayah ?? se.recitationRange?.endAyahNumber ?? 1,
+                wordIndex: (m as any).wordIndex ?? 0,
+                position: (m as any).position || { x: 0, y: 0 },
+                note: (m as any).note,
+                audioUrl: (m as any).audioUrl,
+                workflowStep: "sabq",
+                markedBy: reviewerUser._id.toString(),
+                markedByName: reviewerUser.fullName,
+                timestamp: (m as any).timestamp || new Date(),
+              });
+              idx++;
+            }
+          }
+        } else {
+          const firstMistake = ticket.mistakes?.[0];
+          const surah = firstMistake?.surah ?? ticket.recitationRange?.surahNumber ?? 1;
+          const ayah = firstMistake?.ayah ?? ticket.recitationRange?.endAyahNumber ?? 1;
+          mushafMistakes = (ticket.mistakes || []).map((mistake: any, index: number) => ({
+            id: `mistake-${ticket._id}-${index}`,
+            type: mistake.type || "other",
+            page: mistake.page || 1,
+            surah: mistake.surah ?? surah,
+            ayah: mistake.ayah ?? ayah,
+            wordIndex: mistake.wordIndex ?? 0,
+            position: mistake.position || { x: 0, y: 0 },
+            note: mistake.note,
+            audioUrl: mistake.audioUrl,
+            workflowStep: workflowType,
+            markedBy: reviewerUser._id.toString(),
+            markedByName: reviewerUser.fullName,
+            timestamp: mistake.timestamp || new Date(),
+          }));
+        }
+
+        let assignedByRole: "admin" | "super_admin" | "teacher" = "teacher";
+        if (reviewerUser.role === "admin") assignedByRole = "admin";
+        else if (reviewerUser.role === "super_admin") assignedByRole = "super_admin";
+
         const assignment = await AssignmentModel.create({
           studentId: student._id,
           studentName: studentUser.fullName,

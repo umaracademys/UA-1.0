@@ -12,7 +12,32 @@ export type TicketStatus =
   | "submitted"  // SUBMITTED – teacher submitted for admin review
   | "approved"   // REVIEWED – admin approved
   | "rejected"   // REJECTED – admin rejected
+  | "reassigned" // Reassigned to different teacher
   | "closed";    // CLOSED – final state after review
+
+/** Recitation range (Portal legacy). Includes surahName, juzNumber, startAyahText. */
+export interface TicketRecitationRange {
+  surahName?: string;
+  surahNumber?: number;
+  endSurahNumber?: number;
+  endSurahName?: string;
+  juzNumber?: number;
+  startAyahNumber?: number;
+  startAyahText?: string;
+  endAyahNumber?: number;
+  endAyahText?: string;
+}
+
+/** Sabq entry (Portal legacy). Multiple entries per Sabq ticket. */
+export interface SabqEntry {
+  id?: string;
+  recitationRange?: TicketRecitationRange;
+  mistakes?: TicketMistake[];
+  mistakeCount?: number | "weak";
+  atkees?: number;
+  tajweedIssues?: Array<{ type: string; surahName?: string; wordText?: string; note?: string }>;
+  adminComment?: string;
+}
 
 /** Listening range (surah + ayah). Locked when ticket is in-progress/paused. */
 export interface TicketAyahRange {
@@ -40,6 +65,10 @@ export interface TicketMistake {
 export interface TicketDocument extends mongoose.Document {
   studentId: Types.ObjectId;
   teacherId?: Types.ObjectId;
+  /** Admin who created the ticket (Portal legacy). */
+  createdBy?: Types.ObjectId;
+  /** Admin name (Portal legacy). */
+  createdByName?: string;
   workflowStep: TicketWorkflowStep;
   status: TicketStatus;
   notes?: string;
@@ -65,6 +94,23 @@ export interface TicketDocument extends mongoose.Document {
   listeningDurationSeconds?: number;
   /** Notes added by teacher during the listening session. */
   sessionNotes?: string;
+  /** Recitation range (Portal legacy): surahName, juzNumber, startAyahText, etc. */
+  recitationRange?: TicketRecitationRange;
+  /** Sabq-specific: multiple recitation entries per ticket. */
+  sabqEntries?: SabqEntry[];
+  /** Homework range for next day (Sabq tickets). Maps to Assignment homework when approved. */
+  homeworkRange?: TicketRecitationRange;
+  /** Mistake count: number 1-20 or 'weak'. */
+  mistakeCount?: number | "weak";
+  /** Reassignment tracking (Portal legacy) */
+  reassignedFromTeacherId?: Types.ObjectId;
+  reassignedFromTeacherName?: string;
+  reassignedToTeacherId?: Types.ObjectId;
+  reassignedToTeacherName?: string;
+  reassignmentReason?: string;
+  previousTeacherComment?: string;
+  previousMistakes?: TicketMistake[];
+  reassignedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -90,14 +136,54 @@ const mistakeSchema = new Schema<TicketMistake>(
   { _id: false },
 );
 
+const sabqEntryRecitationRangeSchema = new Schema(
+  {
+    surahName: { type: String, trim: true },
+    surahNumber: { type: Number },
+    endSurahNumber: { type: Number },
+    endSurahName: { type: String, trim: true },
+    juzNumber: { type: Number },
+    startAyahNumber: { type: Number },
+    startAyahText: { type: String, trim: true },
+    endAyahNumber: { type: Number },
+    endAyahText: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+const sabqEntryTajweedIssueSchema = new Schema(
+  {
+    type: { type: String, trim: true },
+    surahName: { type: String, trim: true },
+    wordText: { type: String, trim: true },
+    note: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
+const sabqEntrySchema = new Schema(
+  {
+    id: { type: String },
+    recitationRange: { type: sabqEntryRecitationRangeSchema },
+    mistakes: { type: [mistakeSchema], default: [] },
+    mistakeCount: { type: Schema.Types.Mixed },
+    atkees: { type: Number },
+    tajweedIssues: { type: [sabqEntryTajweedIssueSchema], default: [] },
+    adminComment: { type: String, trim: true },
+  },
+  { _id: false },
+);
+
 const ticketSchema = new Schema<TicketDocument>(
   {
     studentId: { type: Schema.Types.ObjectId, ref: "Student", required: true },
     teacherId: { type: Schema.Types.ObjectId, ref: "Teacher" },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", required: false },
+    createdByName: { type: String, required: false, trim: true },
     workflowStep: { type: String, enum: ["sabq", "sabqi", "manzil"], required: true },
     status: {
       type: String,
-      enum: ["pending", "in-progress", "paused", "submitted", "approved", "rejected", "closed"],
+      enum: ["pending", "in-progress", "paused", "submitted", "approved", "rejected", "reassigned", "closed"],
       default: "pending",
     },
     notes: { type: String, trim: true },
@@ -120,6 +206,38 @@ const ticketSchema = new Schema<TicketDocument>(
     reviewNotes: { type: String, trim: true },
     reviewedAt: { type: Date },
     homeworkAssigned: { type: Schema.Types.ObjectId, ref: "Assignment" },
+    recitationRange: {
+      surahName: { type: String, trim: true },
+      surahNumber: { type: Number },
+      endSurahNumber: { type: Number },
+      endSurahName: { type: String, trim: true },
+      juzNumber: { type: Number },
+      startAyahNumber: { type: Number },
+      startAyahText: { type: String, trim: true },
+      endAyahNumber: { type: Number },
+      endAyahText: { type: String, trim: true },
+    },
+    sabqEntries: { type: [sabqEntrySchema], default: [] },
+    homeworkRange: {
+      surahName: { type: String, trim: true },
+      surahNumber: { type: Number },
+      endSurahNumber: { type: Number },
+      endSurahName: { type: String, trim: true },
+      juzNumber: { type: Number },
+      startAyahNumber: { type: Number },
+      startAyahText: { type: String, trim: true },
+      endAyahNumber: { type: Number },
+      endAyahText: { type: String, trim: true },
+    },
+    mistakeCount: { type: Schema.Types.Mixed },
+    reassignedFromTeacherId: { type: Schema.Types.ObjectId, ref: "Teacher" },
+    reassignedFromTeacherName: { type: String, trim: true },
+    reassignedToTeacherId: { type: Schema.Types.ObjectId, ref: "Teacher" },
+    reassignedToTeacherName: { type: String, trim: true },
+    reassignmentReason: { type: String, trim: true },
+    previousTeacherComment: { type: String, trim: true },
+    previousMistakes: { type: [mistakeSchema], default: [] },
+    reassignedAt: { type: Date },
   },
   { timestamps: true },
 );

@@ -12,7 +12,8 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
     "create-super-admin": "tsx scripts/create-super-admin.ts",
-    "fix-users": "tsx scripts/fix-users.ts"
+    "fix-users": "tsx scripts/fix-users.ts",
+    "migrate:portal": "tsx scripts/migrate-portal-to-1-0.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

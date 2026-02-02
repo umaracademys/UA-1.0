@@ -3,7 +3,10 @@ import { join } from "path";
 import { existsSync } from "fs";
 
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE || "10485760", 10); // 10MB default
-const ALLOWED_FILE_TYPES = (process.env.ALLOWED_FILE_TYPES || "application/pdf,image/jpeg,image/png,audio/mpeg").split(",");
+const ALLOWED_FILE_TYPES = (
+  process.env.ALLOWED_FILE_TYPES ||
+  "application/pdf,image/jpeg,image/png,audio/mpeg,audio/webm"
+).split(",");
 const UPLOAD_DIR = process.env.UPLOAD_DIR || "./public/uploads";
 
 export interface UploadedFile {

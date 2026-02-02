@@ -1,0 +1,75 @@
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "studentId": "507f1f77bcf86cd799439012",
+  "studentName": "أحمد محمد",
+  "type": "sabq",
+  "status": "submitted",
+  "createdBy": "507f1f77bcf86cd799439013",
+  "createdByName": "Admin User",
+  "adminComment": "Review this Sabq",
+  "assignedTeacherId": "507f1f77bcf86cd799439014",
+  "assignedTeacherName": "Teacher One",
+  "teacherNotes": "Focus on heavy letters",
+  "teacherComment": "Good progress, 2 mistakes.",
+  "mistakes": [
+    {
+      "id": "m1",
+      "type": "heavy_letter",
+      "page": 2,
+      "surah": 2,
+      "ayah": 1,
+      "wordIndex": 1,
+      "wordText": "الم",
+      "position": { "x": 10, "y": 20 },
+      "note": "Heavy letter",
+      "timestamp": "2026-01-21T10:00:00Z"
+    }
+  ],
+  "recitationRange": {
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "endSurahNumber": 2,
+    "endSurahName": "البقرة",
+    "juzNumber": 1,
+    "startAyahNumber": 1,
+    "endAyahNumber": 5,
+    "startAyahText": "الم",
+    "endAyahText": "الَّذِينَ"
+  },
+  "mistakeCount": 2,
+  "atkees": 3,
+  "tajweedIssues": [{ "type": "heavy_letters", "note": "Focus on pronunciation" }],
+  "reviewNotes": "",
+  "sabqEntries": [
+    {
+      "id": "se1",
+      "recitationRange": {
+        "surahNumber": 2,
+        "surahName": "البقرة",
+        "juzNumber": 1,
+        "startAyahNumber": 1,
+        "endAyahNumber": 5,
+        "startAyahText": "الم",
+        "endAyahText": "الَّذِينَ"
+      },
+      "mistakes": [
+        { "type": "heavy_letter", "surah": 2, "ayah": 1, "wordIndex": 1, "note": "Fix heavy letter" }
+      ],
+      "mistakeCount": 2,
+      "atkees": 3,
+      "tajweedIssues": [{ "type": "heavy_letters", "note": "Practice" }],
+      "adminComment": "Approved"
+    }
+  ],
+  "homeworkRange": {
+    "surahNumber": 2,
+    "surahName": "البقرة",
+    "juzNumber": 1,
+    "startAyahNumber": 6,
+    "endAyahNumber": 10
+  },
+  "startedAt": "2026-01-21T09:00:00Z",
+  "submittedAt": "2026-01-21T10:30:00Z",
+  "createdAt": "2026-01-21T08:00:00Z",
+  "updatedAt": "2026-01-21T10:30:00Z"
+}

@@ -98,9 +98,8 @@ export async function POST(request: Request, context: { params: { assignmentId: 
       },
     );
 
-    // Update assignment status
-    // Since each assignment is for one student, update status directly
-    await AssignmentModel.findByIdAndUpdate(assignmentId, { status: "submitted" });
+    // Update assignment status (in_progress = student has submitted; teacher can grade)
+    await AssignmentModel.findByIdAndUpdate(assignmentId, { status: "in_progress" });
 
     // Notify teacher/admin who assigned this
     const assignedByUser = await UserModel.findById(assignment.assignedBy);
