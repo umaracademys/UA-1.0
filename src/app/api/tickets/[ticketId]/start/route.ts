@@ -35,13 +35,15 @@ export async function POST(request: Request, context: { params: { ticketId: stri
       return NextResponse.json({ success: false, message: "Invalid ticket ID." }, { status: 400 });
     }
 
-    // Get teacher profile
     const user = await UserModel.findById(decoded.userId);
     if (!user) {
       return NextResponse.json({ success: false, message: "User not found." }, { status: 404 });
     }
+
+    // Teacher profile required for teachers; admin/super_admin can start without one
+    const isAdmin = decoded.role === "admin" || decoded.role === "super_admin";
     const teacher = await TeacherModel.findOne({ userId: user._id });
-    if (!teacher) {
+    if (!isAdmin && !teacher) {
       return NextResponse.json({ success: false, message: "Teacher profile not found." }, { status: 404 });
     }
 
@@ -67,7 +69,9 @@ export async function POST(request: Request, context: { params: { ticketId: stri
     const now = new Date();
 
     ticket.status = "in-progress";
-    ticket.teacherId = teacher._id;
+    if (teacher) {
+      ticket.teacherId = teacher._id;
+    }
     ticket.startedAt = now;
     ticket.lastHeartbeatAt = now;
     ticket.rangeLocked = true;

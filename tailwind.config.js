@@ -62,6 +62,7 @@ module.exports = {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         arabic: ["Cairo", "Tajawal", "Noto Kufi Arabic", "sans-serif"],
+        "me-quran": ["Cairo", "Tajawal", "Noto Kufi Arabic", "sans-serif"],
       },
       screens: {
         xs: "420px",

@@ -165,6 +165,34 @@ export function AssignmentDetailsModal({
                       </div>
                     )}
 
+                    {/* Mushaf Mistakes */}
+                    {assignmentDetails?.mushafMistakes && assignmentDetails.mushafMistakes.length > 0 && (
+                      <div className="rounded-lg border border-neutral-200 p-4">
+                        <h3 className="mb-3 text-sm font-semibold text-neutral-900">Recitation Mistakes</h3>
+                        <div className="space-y-2">
+                          {assignmentDetails.mushafMistakes.map((mistake: any, index: number) => (
+                            <div
+                              key={mistake.id || index}
+                              className="flex flex-wrap items-center gap-2 rounded border border-neutral-200 bg-neutral-50 p-2 text-xs"
+                            >
+                              <span className="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-700">
+                                {mistake.type}
+                              </span>
+                              <span className="text-neutral-600">
+                                Page {mistake.page} · S{mistake.surah}:{mistake.ayah}
+                              </span>
+                              {mistake.wordText && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-800">
+                                  <span className="text-amber-600">Word:</span>
+                                  <span className="font-me-quran" dir="rtl">{mistake.wordText}</span>
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Classwork Section */}
                     {classwork && (
                       <div className="rounded-lg border border-neutral-200 p-4">

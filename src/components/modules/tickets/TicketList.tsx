@@ -9,10 +9,10 @@ type FilterTab = "all" | TicketStatus;
 
 type TicketListProps = {
   tickets: TicketCardData[];
-  userRole: "student" | "teacher" | "admin";
+  userRole: "student" | "teacher" | "admin" | "super_admin";
   loading?: boolean;
   onTicketClick: (ticket: TicketCardData) => void;
-  onStart?: (ticket: TicketCardData) => void;
+  onStart?: (ticket: TicketCardData) => void | Promise<void>;
   onReview?: (ticket: TicketCardData) => void;
   students?: Array<{ id: string; name: string }>;
 };

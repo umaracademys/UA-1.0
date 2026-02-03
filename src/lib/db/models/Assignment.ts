@@ -140,6 +140,7 @@ export interface AssignmentMushafMistake {
   surah: number;
   ayah: number;
   wordIndex: number;
+  wordText?: string;
   position: { x: number; y: number };
   note?: string;
   audioUrl?: string;
@@ -363,6 +364,7 @@ const mushafMistakeSchema = new Schema<AssignmentMushafMistake>(
     surah: { type: Number, required: true },
     ayah: { type: Number, required: true },
     wordIndex: { type: Number, required: true },
+    wordText: { type: String, trim: true },
     position: {
       x: { type: Number, required: true },
       y: { type: Number, required: true },

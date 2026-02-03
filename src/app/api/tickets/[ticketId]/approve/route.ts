@@ -312,6 +312,7 @@ export async function POST(request: Request, context: { params: { ticketId: stri
           surah: number;
           ayah: number;
           wordIndex: number;
+          wordText?: string;
           position: { x: number; y: number };
           note?: string;
           audioUrl?: string;
@@ -332,6 +333,7 @@ export async function POST(request: Request, context: { params: { ticketId: stri
                 surah: (m as any).surah ?? se.recitationRange?.surahNumber ?? 1,
                 ayah: (m as any).ayah ?? se.recitationRange?.endAyahNumber ?? 1,
                 wordIndex: (m as any).wordIndex ?? 0,
+                wordText: (m as any).wordText,
                 position: (m as any).position || { x: 0, y: 0 },
                 note: (m as any).note,
                 audioUrl: (m as any).audioUrl,
@@ -354,6 +356,7 @@ export async function POST(request: Request, context: { params: { ticketId: stri
             surah: mistake.surah ?? surah,
             ayah: mistake.ayah ?? ayah,
             wordIndex: mistake.wordIndex ?? 0,
+            wordText: mistake.wordText,
             position: mistake.position || { x: 0, y: 0 },
             note: mistake.note,
             audioUrl: mistake.audioUrl,

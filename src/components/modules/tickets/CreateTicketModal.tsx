@@ -8,10 +8,17 @@ import { X, Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { Dialog } from "@headlessui/react";
 import type { TicketWorkflowStep } from "@/lib/db/models/Ticket";
+import { SURAHS } from "@/lib/mushaf/surahData";
 
 const ticketSchema = z.object({
   studentId: z.string().min(1, "Student is required"),
   workflowStep: z.enum(["sabq", "sabqi", "manzil"]),
+  rangeMode: z.enum(["juz", "surah"]),
+  juzNumber: z.preprocess((v) => (v === "" || v === undefined ? undefined : Number(v)), z.number().min(1).max(30).optional()),
+  surahNumber: z.preprocess((v) => (v === "" || v === undefined ? undefined : Number(v)), z.number().min(1).max(114).optional()),
+  surahName: z.string().optional(),
+  startAyahNumber: z.preprocess((v) => (v === "" || v === undefined ? undefined : Number(v)), z.number().min(1).optional()),
+  endAyahNumber: z.preprocess((v) => (v === "" || v === undefined ? undefined : Number(v)), z.number().min(1).optional()),
   notes: z.string().optional(),
   audioUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
 });
@@ -46,6 +53,7 @@ export function CreateTicketModal({ isOpen, onClose, onSuccess }: CreateTicketMo
     resolver: zodResolver(ticketSchema),
     defaultValues: {
       workflowStep: "sabq",
+      rangeMode: "juz",
     },
   });
 
@@ -95,13 +103,30 @@ export function CreateTicketModal({ isOpen, onClose, onSuccess }: CreateTicketMo
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
+      const payload: Record<string, unknown> = {
+        studentId: data.studentId,
+        workflowStep: data.workflowStep,
+        notes: data.notes || undefined,
+        audioUrl: data.audioUrl || undefined,
+      };
+      if (data.rangeMode === "juz" && typeof data.juzNumber === "number" && !isNaN(data.juzNumber) && data.juzNumber >= 1 && data.juzNumber <= 30) {
+        payload.recitationRange = { juzNumber: data.juzNumber };
+      } else if (data.rangeMode === "surah" && typeof data.surahNumber === "number" && !isNaN(data.surahNumber) && data.surahNumber >= 1 && data.surahNumber <= 114) {
+        const surah = SURAHS.find((s) => s.id === data.surahNumber);
+        payload.recitationRange = {
+          surahNumber: data.surahNumber,
+          surahName: surah?.englishName ?? data.surahName,
+          startAyahNumber: data.startAyahNumber ?? undefined,
+          endAyahNumber: data.endAyahNumber ?? undefined,
+        };
+      }
       const response = await fetch("/api/tickets", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json();
@@ -219,6 +244,74 @@ export function CreateTicketModal({ isOpen, onClose, onSuccess }: CreateTicketMo
                     <span className="text-sm">Manzil</span>
                   </label>
                 </div>
+              </div>
+
+              {/* Range: Juz or Surah Toggle */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700">Recitation Range</label>
+                <div className="mb-3 flex gap-4">
+                  <label className="flex items-center gap-2">
+                    <input
+                      {...register("rangeMode")}
+                      type="radio"
+                      value="juz"
+                      className="text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm">Juz</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      {...register("rangeMode")}
+                      type="radio"
+                      value="surah"
+                      className="text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm">Surah</span>
+                  </label>
+                </div>
+                {watch("rangeMode") === "juz" ? (
+                  <select
+                    {...register("juzNumber", { valueAsNumber: true })}
+                    className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  >
+                    <option value="">Select Juz (1–30)</option>
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map((j) => (
+                      <option key={j} value={j}>
+                        Juz {j}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="space-y-2">
+                    <select
+                      {...register("surahNumber", { valueAsNumber: true })}
+                      className="w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    >
+                      <option value="">Select Surah</option>
+                      {SURAHS.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.id}. {s.englishName}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        {...register("startAyahNumber", { valueAsNumber: true })}
+                        type="number"
+                        min={1}
+                        placeholder="Start Ayah"
+                        className="rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                      />
+                      <input
+                        {...register("endAyahNumber", { valueAsNumber: true })}
+                        type="number"
+                        min={1}
+                        placeholder="End Ayah (optional)"
+                        className="rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Notes */}

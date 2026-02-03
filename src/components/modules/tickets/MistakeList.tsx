@@ -84,13 +84,19 @@ export function MistakeList({ mistakes, onMistakeClick }: MistakeListProps) {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1">
-                <div className="mb-2 flex items-center gap-2">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
                     {mistake.type}
                   </span>
                   <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">
                     {mistake.category}
                   </span>
+                  {mistake.wordText && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+                      <span className="text-amber-600">Word:</span>
+                      <span className="font-me-quran" dir="rtl">{mistake.wordText}</span>
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-1 text-sm text-neutral-600">
@@ -110,9 +116,6 @@ export function MistakeList({ mistakes, onMistakeClick }: MistakeListProps) {
                   )}
                   {mistake.wordIndex !== undefined && (
                     <span>Word {mistake.wordIndex + 1}</span>
-                  )}
-                  {mistake.letterIndex !== undefined && (
-                    <span>Letter {mistake.letterIndex + 1}</span>
                   )}
                 </div>
 

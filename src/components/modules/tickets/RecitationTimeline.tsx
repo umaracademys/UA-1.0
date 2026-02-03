@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { CheckCircle, XCircle, Clock, Play, Pause, CircleStop } from "lucide-react";
+import { CheckCircle, XCircle, Clock, Play, Pause, CircleStop, RefreshCw } from "lucide-react";
 import type { TicketWorkflowStep, TicketStatus } from "@/lib/db/models/Ticket";
 
 type TimelineEntry = {
@@ -32,6 +32,7 @@ const statusIcons: Record<TicketStatus, typeof CheckCircle> = {
   submitted: Clock,
   approved: CheckCircle,
   rejected: XCircle,
+  reassigned: RefreshCw,
   closed: CircleStop,
 };
 
@@ -42,6 +43,7 @@ const statusColors: Record<TicketStatus, string> = {
   submitted: "text-purple-600",
   approved: "text-green-600",
   rejected: "text-red-600",
+  reassigned: "text-indigo-600",
   closed: "text-neutral-500",
 };
 

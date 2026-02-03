@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import { Dialog } from "@headlessui/react";
 import { MistakeList } from "./MistakeList";
 import { InteractiveMushaf } from "@/components/modules/mushaf/InteractiveMushaf";
+import { JUZ_MAPPING } from "@/lib/mushaf/juzData";
 import type { TicketCardData } from "./TicketCard";
 import type { TicketMistake } from "@/lib/db/models/Ticket";
 
@@ -41,6 +42,9 @@ export function TicketDetailsPanel({
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const canManageSession =
+    userRole === "teacher" || userRole === "admin" || userRole === "super_admin";
+
   useEffect(() => {
     if (isOpen && ticket) {
       fetchTicketDetails();
@@ -66,7 +70,7 @@ export function TicketDetailsPanel({
 
   useEffect(() => {
     if (!isOpen || !ticket) return;
-    const isActive = ticketDetails?.status === "in-progress" && userRole === "teacher";
+    const isActive = ticketDetails?.status === "in-progress" && canManageSession;
     if (isActive) {
       heartbeatRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
       return () => {
@@ -118,7 +122,7 @@ export function TicketDetailsPanel({
       if (response.ok) {
         setTicketDetails(result.ticket);
         // Auto-switch to Mushaf view if ticket is in-progress and teacher
-        if (result.ticket?.status === "in-progress" && userRole === "teacher") {
+        if (result.ticket?.status === "in-progress" && canManageSession) {
           setViewMode("mushaf");
         }
       } else {
@@ -143,6 +147,18 @@ export function TicketDetailsPanel({
         body.fromAyah = ayahRange.fromAyah;
         body.toSurah = ayahRange.toSurah;
         body.toAyah = ayahRange.toAyah;
+      } else {
+        // If ticket has juzNumber but no startAyah, use JUZ_MAPPING for coordinates
+        const juzNum = ticketDetails?.recitationRange?.juzNumber ?? ticket?.recitationRange?.juzNumber;
+        if (juzNum != null && juzNum >= 1 && juzNum <= 30) {
+          const coords = JUZ_MAPPING[juzNum];
+          if (coords) {
+            body.fromSurah = coords.surah;
+            body.fromAyah = coords.ayah;
+            body.toSurah = coords.surah;
+            body.toAyah = coords.ayah;
+          }
+        }
       }
       if (assignmentId) body.assignmentId = assignmentId;
 
@@ -270,7 +286,7 @@ export function TicketDetailsPanel({
               <Dialog.Title className="text-lg font-semibold text-neutral-900">
                 Ticket Details - {studentName}
               </Dialog.Title>
-                  {(ticketDetails?.status === "in-progress" || ticketDetails?.status === "paused") && userRole === "teacher" && (
+                  {(ticketDetails?.status === "in-progress" || ticketDetails?.status === "paused") && canManageSession && (
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-1">
                     <button
@@ -333,7 +349,17 @@ export function TicketDetailsPanel({
                   studentId={ticketDetails?.studentId?._id || ticketDetails?.studentId}
                   ticketId={ticket._id}
                   showHistoricalMistakes={showHistoricalInMushaf}
-                  ayahRange={ticketDetails?.ayahRange}
+                  ayahRange={(() => {
+                    if (ticketDetails?.ayahRange) return ticketDetails.ayahRange;
+                    const juzNum = ticketDetails?.recitationRange?.juzNumber ?? ticket?.recitationRange?.juzNumber;
+                    if (juzNum != null && juzNum >= 1 && juzNum <= 30) {
+                      const coords = JUZ_MAPPING[juzNum];
+                      if (coords) {
+                        return { fromSurah: coords.surah, fromAyah: coords.ayah, toSurah: coords.surah, toAyah: coords.ayah };
+                      }
+                    }
+                    return null;
+                  })()}
                   rangeLocked={ticketDetails?.rangeLocked}
                   onMistakeMarked={async () => {
                     await fetchTicketDetails();
@@ -493,8 +519,8 @@ export function TicketDetailsPanel({
                   </div>
                 )}
 
-                {/* Optional listening range (teacher, pending ticket) */}
-                {ticket.status === "pending" && userRole === "teacher" && (
+                {/* Optional listening range (teacher/admin, pending ticket) */}
+                {(ticketDetails?.status ?? ticket.status) === "pending" && canManageSession && (
                   <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4">
                     <h3 className="mb-2 text-sm font-medium text-neutral-700">Listening range (optional)</h3>
                     <p className="mb-3 text-xs text-neutral-500">Set start and end ayah; range locks when you start.</p>
@@ -547,7 +573,11 @@ export function TicketDetailsPanel({
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap justify-end gap-3 border-t border-neutral-200 pt-4">
-                  {ticket.status === "pending" && userRole === "teacher" && (
+                  {(() => {
+                    const status = ticketDetails?.status ?? ticket.status;
+                    return (
+                      <>
+                  {status === "pending" && canManageSession && (
                     <button
                       onClick={() => {
                         const range =
@@ -564,11 +594,11 @@ export function TicketDetailsPanel({
                       className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50"
                     >
                       <Play className="h-4 w-4" />
-                      {submitting ? "Starting..." : "Start Ticket"}
+                      {submitting ? "Starting..." : "Start Session"}
                     </button>
                   )}
 
-                  {(ticket.status === "in-progress" || ticket.status === "paused") && userRole === "teacher" && (
+                  {(status === "in-progress" || status === "paused") && canManageSession && (
                     <>
                       <button
                         onClick={() => setViewMode(viewMode === "mushaf" ? "details" : "mushaf")}
@@ -577,7 +607,7 @@ export function TicketDetailsPanel({
                         <BookOpen className="h-4 w-4" />
                         {viewMode === "mushaf" ? "View Details" : "Open Mushaf"}
                       </button>
-                      {ticket.status === "in-progress" && (
+                      {status === "in-progress" && (
                         <button
                           onClick={handlePause}
                           disabled={submitting}
@@ -587,7 +617,7 @@ export function TicketDetailsPanel({
                           Pause
                         </button>
                       )}
-                      {ticket.status === "paused" && (
+                      {status === "paused" && (
                         <button
                           onClick={handleResume}
                           disabled={submitting}
@@ -618,7 +648,7 @@ export function TicketDetailsPanel({
                     </>
                   )}
 
-                  {ticket.status === "submitted" && (userRole === "admin" || userRole === "super_admin") && onReview && (
+                  {status === "submitted" && (userRole === "admin" || userRole === "super_admin") && onReview && (
                     <button
                       onClick={onReview}
                       className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
@@ -627,6 +657,9 @@ export function TicketDetailsPanel({
                       Review Ticket
                     </button>
                   )}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             )}

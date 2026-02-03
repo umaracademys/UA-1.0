@@ -39,10 +39,26 @@ export const JUZ_DATA: JuzData[] = [
   { id: 30, startPage: 582, endPage: 604, startSurah: 78, startAyah: 1 },
 ];
 
+/** Juz number (1–30) → starting surah and ayah. Use when ticket has juzNumber but no ayahRange. */
+export const JUZ_MAPPING: Record<number, { surah: number; ayah: number }> = Object.fromEntries(
+  JUZ_DATA.map((j) => [j.id, { surah: j.startSurah, ayah: j.startAyah }])
+) as Record<number, { surah: number; ayah: number }>;
+
 export function getJuzByPage(page: number): JuzData | undefined {
   return JUZ_DATA.find((juz) => page >= juz.startPage && page <= juz.endPage);
 }
 
 export function getJuzById(id: number): JuzData | undefined {
   return JUZ_DATA.find((juz) => juz.id === id);
+}
+
+/** Returns the Mushaf page number containing the given surah:ayah. */
+export function getPageForSurahAyah(surah: number, ayah: number): number {
+  for (let i = JUZ_DATA.length - 1; i >= 0; i--) {
+    const j = JUZ_DATA[i];
+    if (j.startSurah < surah || (j.startSurah === surah && j.startAyah <= ayah)) {
+      return j.startPage;
+    }
+  }
+  return 1;
 }

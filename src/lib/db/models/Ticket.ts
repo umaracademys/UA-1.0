@@ -55,6 +55,7 @@ export interface TicketMistake {
   ayah?: number;
   wordIndex?: number;
   letterIndex?: number;
+  wordText?: string;
   position?: { x: number; y: number };
   tajweedData?: Record<string, unknown>;
   note?: string;
@@ -124,6 +125,7 @@ const mistakeSchema = new Schema<TicketMistake>(
     ayah: { type: Number },
     wordIndex: { type: Number },
     letterIndex: { type: Number },
+    wordText: { type: String, trim: true },
     position: {
       x: { type: Number },
       y: { type: Number },

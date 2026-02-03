@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, BookOpen, Clock, CheckCircle } from "lucide-react";
 import { CreateTicketModal } from "@/components/modules/tickets/CreateTicketModal";
+import { JUZ_MAPPING } from "@/lib/mushaf/juzData";
 import { TicketList } from "@/components/modules/tickets/TicketList";
 import { TicketDetailsPanel } from "@/components/modules/tickets/TicketDetailsPanel";
 import { TicketReviewModal } from "@/components/modules/tickets/TicketReviewModal";
@@ -83,17 +84,39 @@ export default function TeacherTicketsPage() {
   const handleStart = async (ticket: TicketCardData) => {
     try {
       const token = localStorage.getItem("token");
+      const body: Record<string, number> = {};
+      if (!ticket.ayahRange && ticket.recitationRange) {
+        const rr = ticket.recitationRange;
+        if (rr.juzNumber != null && rr.juzNumber >= 1 && rr.juzNumber <= 30) {
+          const coords = JUZ_MAPPING[rr.juzNumber];
+          if (coords) {
+            body.fromSurah = coords.surah;
+            body.fromAyah = coords.ayah;
+            body.toSurah = coords.surah;
+            body.toAyah = coords.ayah;
+          }
+        } else if (rr.surahNumber != null && rr.startAyahNumber != null) {
+          body.fromSurah = rr.surahNumber;
+          body.fromAyah = rr.startAyahNumber;
+          body.toSurah = rr.endSurahNumber ?? rr.surahNumber;
+          body.toAyah = rr.endAyahNumber ?? rr.startAyahNumber;
+        }
+      }
       const response = await fetch(`/api/tickets/${ticket._id}/start`, {
         method: "POST",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify(body),
       });
 
       const result = await response.json();
       if (response.ok) {
         toast.success("Ticket started successfully");
-        fetchTickets();
+        await fetchTickets();
+        setSelectedTicket(ticket);
+        setIsDetailsOpen(true);
       } else {
         toast.error(result.message || "Failed to start ticket");
       }

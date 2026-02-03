@@ -125,9 +125,12 @@ export function LineRenderer({
             m.surah === word.surah &&
             m.ayah === word.ayah
         );
+        const fullWordText = word.text || "";
         return (
           <span
             key={`page-${pageNumber}-word-${word.surah}-${word.ayah}-${word.wordIndex}`}
+            className="quran-word"
+            data-word-text={fullWordText}
             style={{
               position: "relative",
               display: "inline-flex",
@@ -138,7 +141,7 @@ export function LineRenderer({
               flexShrink: 0,
             }}
           >
-            {/* Mistake highlight behind text */}
+            {/* Mistake highlight behind text - covers entire word container */}
             {wordMistakes.length > 0 && (
               <span
                 className="mistake-highlight"
@@ -153,22 +156,44 @@ export function LineRenderer({
                 }}
               />
             )}
-            {/* Interactive: onClick/onMouseDown for mistake marking; golden glow/underline on hover */}
+            {/* Interactive: onClick for mistake marking - extracts full word from container */}
             <span
               role="button"
               tabIndex={0}
-              onClick={() =>
-                onWordClick?.(word.page, word.wordIndex, undefined, undefined, word.text, undefined, word.surah, word.ayah)
-              }
-              onMouseDown={() =>
-                onWordClick?.(word.page, word.wordIndex, undefined, undefined, word.text, undefined, word.surah, word.ayah)
-              }
+              onClick={(e) => {
+                const el = e.currentTarget.closest(".quran-word") as HTMLElement | null;
+                const wordText =
+                  (el?.getAttribute("data-word-text") ?? el?.textContent?.trim()) || fullWordText;
+                const rect = (el ?? e.currentTarget).getBoundingClientRect();
+                onWordClick?.(
+                  word.page,
+                  word.wordIndex,
+                  undefined,
+                  { x: rect.left, y: rect.top },
+                  wordText,
+                  undefined,
+                  word.surah,
+                  word.ayah,
+                );
+              }}
               onMouseEnter={() => setHoveredWord(word.wordIndex)}
               onMouseLeave={() => setHoveredWord(null)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  onWordClick?.(word.page, word.wordIndex, undefined, undefined, word.text, undefined, word.surah, word.ayah);
+                  const el = e.currentTarget.closest(".quran-word") as HTMLElement | null;
+                  const wordText =
+                    (el?.getAttribute("data-word-text") ?? el?.textContent?.trim()) || fullWordText;
+                  onWordClick?.(
+                    word.page,
+                    word.wordIndex,
+                    undefined,
+                    undefined,
+                    wordText,
+                    undefined,
+                    word.surah,
+                    word.ayah,
+                  );
                 }
               }}
               style={{
@@ -197,7 +222,7 @@ export function LineRenderer({
               }}
               className="mushaf-word quran-text mushaf-word-interactive"
             >
-              {word.text || ""}
+              {fullWordText}
             </span>
           </span>
         );

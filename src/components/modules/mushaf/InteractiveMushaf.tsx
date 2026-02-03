@@ -14,6 +14,7 @@ import { useSwipeGestures } from "@/hooks/useSwipeGestures";
 import type { PersonalMushafMistake } from "@/lib/db/models/PersonalMushaf";
 import type { WorkflowStep } from "@/lib/db/models/PersonalMushaf";
 import { getSurahById } from "@/lib/mushaf/surahData";
+import { getPageForSurahAyah } from "@/lib/mushaf/juzData";
 import toast from "react-hot-toast";
 
 /** Ayah range (from → to) locked when ticket is in progress. */
@@ -112,9 +113,20 @@ export function InteractiveMushaf({
     setCurrentJuz(getJuzFromPage(currentPage));
   }, [currentPage]);
 
+  // When ayahRange is provided (e.g. from active ticket), load the correct Quran page automatically
+  useEffect(() => {
+    if (!propAyahRange?.fromSurah) return;
+    const page = getPageForSurahAyah(propAyahRange.fromSurah, propAyahRange.fromAyah ?? 1);
+    if (page >= 1 && page <= 604) {
+      setCurrentPage(page);
+      setCurrentJuz(getJuzFromPage(page));
+      setCurrentSurah(propAyahRange.fromSurah);
+    }
+  }, [propAyahRange?.fromSurah, propAyahRange?.fromAyah]);
+
   // Mushaf position memory: load last page/surah/ayah for this student so reload restores exact position. No data loss on browser crash or refresh.
   useEffect(() => {
-    if (!studentId || initialPositionLoaded) return;
+    if (!studentId || initialPositionLoaded || propAyahRange?.fromSurah) return;
     let cancelled = false;
     (async () => {
       try {

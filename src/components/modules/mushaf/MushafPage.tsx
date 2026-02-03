@@ -45,92 +45,6 @@ type LayoutMetaLine = { line_number: number; line_type: string; surah_number?: n
 const QPC_PAGE_FONT_URL = (n: number) => `/data/Mushaf%20files/QPC%20V1%20Font.woff/p${n}.woff`;
 const QPC_FONT_FAMILY = "QPC V1";
 
-/**
- * Calculate which letter was clicked within a word
- * @param wordText - The Arabic word text
- * @param wordX - X position of the word
- * @param wordWidth - Width of the word
- * @param clickX - X position of the click relative to the SVG
- * @returns letterIndex (0-based) or -1 if click is outside word bounds
- */
-const getLetterAtPosition = (
-  wordText: string,
-  wordX: number,
-  wordWidth: number,
-  clickX: number,
-): number => {
-  if (!wordText || wordText.length === 0) return -1;
-  
-  // Calculate relative position within the word (0 to 1)
-  const relativeX = (clickX - wordX) / wordWidth;
-  
-  // Clamp to word boundaries
-  if (relativeX < 0 || relativeX > 1) return -1;
-  
-  // Extract actual letters (handles diacritics properly)
-  const letters = extractLetters(wordText);
-  const letterCount = letters.length;
-  
-  if (letterCount === 0) return -1;
-  
-  // For Arabic text, letters are distributed across the word width
-  // Calculate which letter was clicked based on relative position
-  const letterWidth = wordWidth / letterCount;
-  const letterIndex = Math.floor((clickX - wordX) / letterWidth);
-  
-  // Ensure letterIndex is within bounds
-  return Math.max(0, Math.min(letterIndex, letterCount - 1));
-};
-
-/**
- * Extract individual Arabic letters from a word
- * Handles Arabic diacritics and combining characters
- * Returns array of letter strings with their diacritics
- */
-const extractLetters = (word: string): string[] => {
-  if (!word) return [];
-  
-  const letters: string[] = [];
-  let i = 0;
-  
-  while (i < word.length) {
-    const char = word[i];
-    let letter = char;
-    i++;
-    
-    // Check for combining diacritics (harakat, tanween, etc.)
-    // These are combining marks that follow the base letter
-    while (i < word.length) {
-      const nextChar = word[i];
-      const code = nextChar.charCodeAt(0);
-      
-      // Arabic diacritics range: U+064B to U+065F, U+0670
-      // Also check for shaddah (U+0651) and sukoon (U+0652)
-      if (
-        (code >= 0x064b && code <= 0x065f) ||
-        code === 0x0670 ||
-        code === 0x0651 || // Shaddah
-        code === 0x0652 || // Sukoon
-        code === 0x0640 // Tatweel (elongation mark)
-      ) {
-        letter += nextChar;
-        i++;
-      } else {
-        break;
-      }
-    }
-    
-    letters.push(letter);
-  }
-  
-  // Fallback: if no letters extracted, split by character
-  if (letters.length === 0) {
-    return word.split('');
-  }
-  
-  return letters;
-};
-
 // Open-source Quran CDN URLs for Mushaf pages
 // Using multiple reliable sources for fallback
 const getMushafImageUrl = (pageNumber: number, sourceIndex = 0): string => {
@@ -414,48 +328,19 @@ export function MushafPage({
   const handleWordClick = (
     wordIndex: number,
     event: React.MouseEvent<SVGRectElement>,
-    wordData: WordPosition & { text?: string; surah?: number; ayah?: number },
+    wordData: WordPosition & { text?: string; surah?: number; ayah?: number; x?: number; y?: number; width?: number; height?: number },
   ) => {
     setSelectedWord(wordIndex);
-    
-    // Get click position relative to SVG
-    const svgRect = svgRef.current?.getBoundingClientRect();
-    if (!svgRect) return;
-    
-    const clickX = event.clientX - svgRect.left;
-    const clickY = event.clientY - svgRect.top;
-    
-    // Calculate letter index if word text is available
-    let letterIndex: number | undefined = undefined;
-    let selectedLetter: string | undefined = undefined;
-    
-    if (wordData.text) {
-      const calculatedLetterIndex = getLetterAtPosition(
-        wordData.text,
-        wordData.x,
-        wordData.width,
-        clickX,
-      );
-      
-      if (calculatedLetterIndex >= 0) {
-        letterIndex = calculatedLetterIndex;
-        const letters = extractLetters(wordData.text);
-        if (letters[letterIndex]) {
-          selectedLetter = letters[letterIndex];
-        }
-      }
-    }
-    
+    // Always select the full word; pass full word text to MarkMistakeModal
+    const fullWordText = wordData.text || "";
+    const rect = event.currentTarget.getBoundingClientRect();
     onWordClick?.(
       pageNumber,
       wordIndex,
-      letterIndex,
-      {
-        x: clickX,
-        y: clickY,
-      },
-      wordData.text,
-      selectedLetter,
+      undefined,
+      { x: rect.left, y: rect.top },
+      fullWordText,
+      undefined,
       wordData.surah,
       wordData.ayah,
     );

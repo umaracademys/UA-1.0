@@ -246,11 +246,12 @@ export function MarkMistakeModal({
       }
 
       // Ensure tajweedData is only included for Tajweed mistakes
-      const submitData: MistakeFormData = {
+      const submitData: MistakeFormData & { wordText?: string } = {
         ...data,
         audioUrl: finalAudioUrl,
         tajweedData: isTajweed ? data.tajweedData : undefined,
       };
+      if (wordText) submitData.wordText = wordText;
 
       await onSave(submitData);
       reset();
@@ -282,6 +283,16 @@ export function MarkMistakeModal({
 
           <form onSubmit={handleSubmit(onSubmit)} className="max-h-[calc(100vh-200px)] overflow-y-auto p-6">
             <div className="space-y-4">
+              {/* Selected Word - Large Arabic at top */}
+              {wordText && (
+                <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-4 text-center">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wider text-neutral-500">Selected Word</p>
+                  <p className="font-arabic text-3xl text-neutral-900" dir="rtl">
+                    {wordText}
+                  </p>
+                </div>
+              )}
+
               {/* Selected Word Info */}
               <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
                 <div className="space-y-2">
@@ -292,15 +303,6 @@ export function MarkMistakeModal({
                     )}
                     {surah && ayah && ` - Surah ${surah}, Ayah ${ayah}`}
                   </p>
-                  
-                  {wordText && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-neutral-500">Word:</span>
-                      <span className="text-lg font-arabic text-neutral-900" dir="rtl">
-                        {wordText}
-                      </span>
-                    </div>
-                  )}
                   
                   {selectedLetter && letterIndex !== undefined && !markEntireWord && (
                     <div className="flex items-center gap-2 rounded-md bg-blue-50 p-2">

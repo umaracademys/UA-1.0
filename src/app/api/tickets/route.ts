@@ -135,9 +135,16 @@ export async function POST(request: Request) {
       workflowStep: TicketWorkflowStep;
       notes?: string;
       audioUrl?: string;
+      recitationRange?: {
+        juzNumber?: number;
+        surahNumber?: number;
+        surahName?: string;
+        startAyahNumber?: number;
+        endAyahNumber?: number;
+      };
     };
 
-    const { studentId, workflowStep, notes, audioUrl } = body;
+    const { studentId, workflowStep, notes, audioUrl, recitationRange } = body;
 
     if (!studentId || !workflowStep) {
       return NextResponse.json({ success: false, message: "Missing required fields." }, { status: 400 });
@@ -173,7 +180,7 @@ export async function POST(request: Request) {
       : "student";
 
     // Create ticket
-    const ticket = await TicketModel.create({
+    const ticketData: Record<string, unknown> = {
       studentId: new Types.ObjectId(studentId),
       teacherId,
       workflowStep,
@@ -181,7 +188,17 @@ export async function POST(request: Request) {
       notes: notes || undefined,
       audioUrl: audioUrl || undefined,
       mistakes: [],
-    });
+    };
+    if (recitationRange && typeof recitationRange === "object") {
+      ticketData.recitationRange = {
+        juzNumber: recitationRange.juzNumber,
+        surahNumber: recitationRange.surahNumber,
+        surahName: recitationRange.surahName,
+        startAyahNumber: recitationRange.startAyahNumber,
+        endAyahNumber: recitationRange.endAyahNumber,
+      };
+    }
+    const ticket = await TicketModel.create(ticketData);
 
     // Create notification for admin (review needed)
     const admins = await UserModel.find({ role: { $in: ["admin", "super_admin"] } }).select("_id").lean();

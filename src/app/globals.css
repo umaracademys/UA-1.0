@@ -7,14 +7,14 @@
 
 /* Local Mushaf fonts (offline): public/data/Mushaf files/ */
 
-/* Surah headers & Bismillah — encoded path to avoid 404; fallback in font-family below */
+/* Surah headers & Bismillah - encoded path to avoid 404; fallback in font-family below */
 @font-face {
   font-family: 'Surah Names';
   src: url('/data/Mushaf%20files/surah_names.woff') format('woff');
   font-display: swap;
 }
 
-/* Quran text: QPC V1 Font — public/data/Mushaf files/QPC V1 Font.woff/ (p1–p604 .woff) */
+/* Quran text: QPC V1 Font - public/data/Mushaf files/QPC V1 Font.woff/ (p1-p604 .woff) */
 @font-face {
   font-family: 'QPC V1';
   src: url('/data/Mushaf%20files/QPC%20V1%20Font.woff') format('woff'),

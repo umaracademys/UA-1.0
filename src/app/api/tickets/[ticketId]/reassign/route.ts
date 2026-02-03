@@ -101,7 +101,9 @@ export async function POST(request: Request, context: { params: { ticketId: stri
     const previousTeacherId =
       ticket.teacherId instanceof Types.ObjectId
         ? ticket.teacherId
-        : (ticket.teacherId as { _id: Types.ObjectId } | null)?._id;
+        : ticket.teacherId && typeof ticket.teacherId === "object" && "_id" in ticket.teacherId
+          ? (ticket.teacherId as { _id: Types.ObjectId })._id
+          : undefined;
 
     ticket.status = "reassigned";
     ticket.reassignedFromTeacherId = previousTeacherId;

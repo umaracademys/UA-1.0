@@ -82,6 +82,7 @@ interface PortalTicket {
   sentToAssignmentId?: string;
   sentAt?: string | Date;
   recordingUrl?: string;
+  audioUrl?: string;
   recordingFormat?: string;
   recordingDuration?: number;
   recordingStartedAt?: string | Date;
@@ -91,6 +92,7 @@ interface PortalTicket {
   startedAt?: string | Date;
   submittedAt?: string | Date;
   approvedAt?: string | Date;
+  reviewedAt?: string | Date;
   reassignedAt?: string | Date;
   createdAt?: string | Date;
   updatedAt?: string | Date;

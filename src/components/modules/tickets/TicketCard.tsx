@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Clock, Play, Eye, CheckCircle, XCircle } from "lucide-react";
+import { Clock, Play, Eye, CheckCircle, XCircle, RefreshCw } from "lucide-react";
 import type { TicketWorkflowStep, TicketStatus } from "@/lib/db/models/Ticket";
 
 export type TicketCardData = {
@@ -22,12 +22,24 @@ export type TicketCardData = {
   mistakes?: Array<{ type: string; category: string }>;
   createdAt: string | Date;
   reviewedAt?: string | Date;
+  /** Listening range set when ticket is started */
+  ayahRange?: { fromSurah: number; fromAyah: number; toSurah: number; toAyah: number };
+  /** Portal legacy: surah/ayah range */
+  recitationRange?: {
+    surahNumber?: number;
+    surahName?: string;
+    juzNumber?: number;
+    startAyahNumber?: number;
+    endAyahNumber?: number;
+    endSurahNumber?: number;
+    endSurahName?: string;
+  };
 };
 
 type TicketCardProps = {
   ticket: TicketCardData;
   userRole: "student" | "teacher" | "admin" | "super_admin";
-  onStart?: () => void;
+  onStart?: (ticket: TicketCardData) => void;
   onView: () => void;
   onReview?: () => void;
 };
@@ -45,6 +57,7 @@ const statusColors: Record<TicketStatus, string> = {
   submitted: "bg-purple-100 text-purple-700",
   approved: "bg-green-100 text-green-700",
   rejected: "bg-red-100 text-red-700",
+  reassigned: "bg-indigo-100 text-indigo-700",
   closed: "bg-neutral-100 text-neutral-700",
 };
 
@@ -55,6 +68,7 @@ const statusIcons: Record<TicketStatus, typeof Clock> = {
   submitted: Clock,
   approved: CheckCircle,
   rejected: XCircle,
+  reassigned: RefreshCw,
   closed: XCircle,
 };
 
@@ -65,14 +79,32 @@ export function TicketCard({ ticket, userRole, onStart, onView, onReview }: Tick
       ? (ticket.studentId.userId as { fullName: string }).fullName
       : "Unknown Student";
 
+  const assignedTeacherName =
+    ticket.teacherId && typeof ticket.teacherId === "object" && "userId" in ticket.teacherId
+      ? (ticket.teacherId.userId as { fullName: string }).fullName
+      : null;
+
+  const juzNumber = ticket.recitationRange?.juzNumber;
+  const surahName =
+    ticket.recitationRange?.surahName ??
+    (ticket.recitationRange?.surahNumber != null ? `Surah ${ticket.recitationRange.surahNumber}` : null);
+  const rangeText = ticket.ayahRange
+    ? `${ticket.ayahRange.fromSurah}:${ticket.ayahRange.fromAyah} → ${ticket.ayahRange.toSurah}:${ticket.ayahRange.toAyah}`
+    : null;
+
   const mistakesCount = ticket.mistakes?.length || 0;
+
+  const canManageSession =
+    userRole === "teacher" || userRole === "admin" || userRole === "super_admin";
 
   return (
     <div className="group rounded-lg border border-neutral-200 bg-white p-5 shadow-sm transition-all hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">
           <div className="mb-2 flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-neutral-900">{studentName}</h3>
+            <h3 className="text-lg font-semibold text-neutral-900" title="Student">
+              {studentName}
+            </h3>
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${workflowStepColors[ticket.workflowStep] ?? "bg-neutral-100 text-neutral-700"}`}
             >
@@ -89,23 +121,24 @@ export function TicketCard({ ticket, userRole, onStart, onView, onReview }: Tick
             {mistakesCount > 0 && <span>{mistakesCount} mistake{mistakesCount !== 1 ? "s" : ""}</span>}
           </div>
 
-          {ticket.teacherId && typeof ticket.teacherId === "object" && "userId" in ticket.teacherId && (
-            <p className="text-sm text-neutral-600">
-              Teacher: {(ticket.teacherId.userId as { fullName: string }).fullName}
-            </p>
-          )}
+          <div className="space-y-1 text-sm text-neutral-600">
+            {assignedTeacherName && <p>Teacher: {assignedTeacherName}</p>}
+            {juzNumber != null && <p>Juz: {juzNumber}</p>}
+            {surahName && <p>Surah: {surahName}</p>}
+            {rangeText && <p>Range: {rangeText}</p>}
+          </div>
         </div>
 
         <div className="flex flex-col gap-2">
-          {ticket.status === "pending" && onStart && userRole === "teacher" && (
+          {ticket.status === "pending" && onStart && canManageSession && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onStart();
+                onStart(ticket);
               }}
               className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
             >
-              Start
+              Start Session
             </button>
           )}
 
